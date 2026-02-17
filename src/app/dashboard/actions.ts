@@ -83,7 +83,8 @@ export async function castVote(formData: FormData) {
         .eq("representative_id", targetUserId)
         .eq("status", "APPROVED");
 
-    let totalWeight = Array.isArray(profile.units) ? profile.units[0]?.coefficient : profile.units?.coefficient || 0;
+    const userUnit = profile.units as any;
+    let totalWeight = Array.isArray(userUnit) ? userUnit[0]?.coefficient : userUnit?.coefficient || 0;
 
     // Add weight from proxies
     if (proxies && proxies.length > 0) {
@@ -101,7 +102,7 @@ export async function castVote(formData: FormData) {
         option_id,
         unit_id: profile.unit_id,
         user_id: targetUserId,
-        weight: totalWeight 
+        weight: totalWeight
     });
 
     if (error) {
