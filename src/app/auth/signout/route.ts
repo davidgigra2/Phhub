@@ -15,7 +15,12 @@ export async function POST(req: NextRequest) {
     }
 
     revalidatePath('/', 'layout')
-    return NextResponse.redirect(new URL('/login', req.url), {
+
+    // Use the 'origin' header from the request (browser) to ensure we redirect to the correct domain/IP
+    // falling back to req.url's origin if not present (server-side calls)
+    const origin = req.headers.get('origin') || new URL(req.url).origin
+
+    return NextResponse.redirect(`${origin}/login`, {
         status: 302,
     })
 }

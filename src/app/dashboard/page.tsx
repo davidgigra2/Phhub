@@ -12,9 +12,13 @@ import AdminVoteControls from './AdminVoteControls'
 import CreateVoteForm from './CreateVoteForm'
 import EditVoteForm from './EditVoteForm'
 import Link from 'next/link'
-import { PlusCircle } from 'lucide-react'
+import { PlusCircle, FileBarChart } from 'lucide-react'
 import VoteInterface from './VoteInterface'
 import VoteResults from './VoteResults'
+import UserQRCard from './UserQRCard';
+import OperatorAttendance from './OperatorAttendance';
+import PowerManagement from './PowerManagement';
+import AdminReports from './AdminReports';
 
 export default async function DashboardPage() {
     const supabase = await createClient()
@@ -41,6 +45,37 @@ export default async function DashboardPage() {
         .single()
 
     const isAdmin = userProfile?.role === 'ADMIN';
+    const isOperator = userProfile?.role === 'OPERATOR'; // Strict separation as requested
+
+    // Fetch proxies data (Given and Received)
+    let givenProxy = null;
+    let receivedProxies: any[] = [];
+
+    if (!isAdmin) {
+        // Did I give power?
+        const { data: given } = await supabase
+            .from('proxies')
+            .select('*, representative:users!proxies_representative_id_fkey(full_name, id, document_number)')
+            .eq('principal_id', user.id)
+            .eq('status', 'APPROVED') // Assuming approved for now
+            .single();
+        givenProxy = given;
+
+        // Did I receive powers?
+        const { data: received } = await supabase
+            .from('proxies')
+            .select(`
+                *, 
+                principal:users!proxies_principal_id_fkey(
+                    full_name, 
+                    id, 
+                    units(number, coefficient)
+                )
+            `)
+            .eq('representative_id', user.id)
+            .eq('status', 'APPROVED');
+        receivedProxies = received || [];
+    }
 
     // Fetch votes logic (Admin sees ALL, User sees only OPEN)
     let voteQuery = supabase
@@ -58,13 +93,6 @@ export default async function DashboardPage() {
 
     const { data: votes } = await voteQuery;
 
-
-    if (error) {
-        console.error('Error fetching dashboard profile:', error)
-    } else {
-        console.log('Dashboard profile loaded:', userProfile)
-    }
-
     const roleMap: Record<string, string> = {
         'ADMIN': 'Administrador',
         'OPERATOR': 'Operador',
@@ -72,8 +100,11 @@ export default async function DashboardPage() {
     }
 
     const userRole = userProfile?.role ? (roleMap[userProfile.role] || userProfile.role) : 'Usuario'
-    // Prioritize represented_unit, fallback to attached unit number
     const displayUnit = userProfile?.represented_unit || userProfile?.units?.number || 'Sin Unidad'
+
+    if (error) {
+        console.error('Error fetching dashboard profile:', error)
+    }
 
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-white p-8">
@@ -108,6 +139,23 @@ export default async function DashboardPage() {
 
                 {/* KPI Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {isAdmin && (
+                        <Link href="/dashboard/reports" className="group">
+                            <Card className="bg-indigo-950/20 border-indigo-500/20 hover:bg-indigo-900/30 transition-all cursor-pointer h-full">
+                                <CardHeader>
+                                    <CardTitle className="text-indigo-400 flex items-center gap-2">
+                                        <FileBarChart className="w-5 h-5" />
+                                        Informes y Estadísticas
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-white group-hover:scale-105 transition-transform">Ver Reportes →</div>
+                                    <p className="text-sm text-gray-400 mt-2">Asistencia, Votos, Poderes</p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    )}
+                    
                     <Card className="bg-[#121212] border-white/5">
                         <CardHeader>
                             <CardTitle className="text-gray-200">Estado de Asamblea</CardTitle>
@@ -119,6 +167,7 @@ export default async function DashboardPage() {
                     </Card>
 
                     <QuorumCard />
+
 
                     {userProfile?.units ? (
                         <Card className="bg-[#121212] border-white/5">
@@ -143,7 +192,34 @@ export default async function DashboardPage() {
                             </CardContent>
                         </Card>
                     )}
+                    {/* User QR Code (Visible only to Asambleístas) */}
+                    {userProfile?.role === 'USER' && (
+                        <UserQRCard
+                            documentNumber={userProfile?.document_number}
+                            username={userProfile?.username || user.email}
+                            unitNumber={displayUnit}
+                        />
+                    )}
                 </div>
+
+                {/* Power Management Section */}
+                {!isAdmin && (
+                    <PowerManagement
+                        userId={user.id}
+                        userRole={userProfile?.role} // Pass role
+                        givenProxy={givenProxy}
+                        receivedProxies={receivedProxies}
+                    />
+                )}
+
+
+
+                {/* Operator Section (Scanning & Manual Entry) */}
+                {isOperator && (
+                    <div className="grid grid-cols-1 gap-6">
+                        <OperatorAttendance />
+                    </div>
+                )}
 
                 {/* Voting Section */}
                 <div className="space-y-6">
@@ -221,7 +297,7 @@ export default async function DashboardPage() {
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }

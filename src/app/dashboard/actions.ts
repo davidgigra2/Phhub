@@ -72,14 +72,36 @@ export async function castVote(formData: FormData) {
         return { success: false, message: "El usuario ya ha votado en esta pregunta.", code: "ALREADY_VOTED" };
     }
 
-    // 5. Cast Vote
+    // 5. Calculate Total Weight (Own + Proxies)
+    const { data: proxies } = await supabase
+        .from("proxies")
+        .select(`
+            principal:users!proxies_principal_id_fkey (
+                units (coefficient)
+            )
+        `)
+        .eq("representative_id", targetUserId)
+        .eq("status", "APPROVED");
+
+    let totalWeight = Array.isArray(profile.units) ? profile.units[0]?.coefficient : profile.units?.coefficient || 0;
+
+    // Add weight from proxies
+    if (proxies && proxies.length > 0) {
+        const proxyWeight = proxies.reduce((sum, p: any) => {
+            const unit = p.principal?.units;
+            const coef = Array.isArray(unit) ? unit[0]?.coefficient : unit?.coefficient;
+            return sum + (coef || 0);
+        }, 0);
+        totalWeight += proxyWeight;
+    }
+
+    // 6. Cast Vote
     const { error } = await supabase.from("ballots").insert({
         vote_id,
         option_id,
         unit_id: profile.unit_id,
         user_id: targetUserId,
-        // @ts-ignore: Supabase types for joined tables
-        weight: Array.isArray(profile.units) ? profile.units[0]?.coefficient : profile.units?.coefficient
+        weight: totalWeight 
     });
 
     if (error) {
@@ -87,6 +109,9 @@ export async function castVote(formData: FormData) {
         return { success: false, message: "Error al registrar el voto: " + error.message };
     }
 
+    // Also mark attendance for proxies? Optional but good practice.
+    // For now we just record the vote weight.
+
     revalidatePath("/dashboard");
-    return { success: true, message: "Voto registrado exitosamente." };
+    return { success: true, message: `Voto registrado exitosamente. Peso total: ${Number(totalWeight).toFixed(4)}` };
 }
