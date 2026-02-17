@@ -216,8 +216,7 @@ export default function Home() {
                 "Hasta 300 unidades",
                 "Votaciones ilimitadas",
                 "Soporte prioritario",
-                "4 asesores permanentes durante toda la asamblea",
-                "Dominio personalizado"
+                "4 asesores permanentes durante toda la asamblea"
               ]}
             />
             <PricingCard
