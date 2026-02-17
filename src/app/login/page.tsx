@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +13,18 @@ import Link from "next/link";
 
 export default function LoginPage() {
     const [state, formAction, isPending] = useActionState(login, null);
+    const router = useRouter();
+    const supabase = createClient();
+
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                router.replace("/dashboard");
+            }
+        };
+        checkSession();
+    }, [router, supabase]);
 
     return (
         <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -49,6 +63,7 @@ export default function LoginPage() {
                                 type="text"
                                 required
                                 className="bg-[#0A0A0A] border-white/10 text-white focus:border-indigo-500 transition-colors"
+                                onDoubleClick={(e) => e.currentTarget.select()}
                             />
                         </div>
                         <div className="space-y-2">
