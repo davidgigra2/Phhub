@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login } from "./actions";
-import { ArrowLeft, BarChart3, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function LoginPage() {
     const [state, formAction, isPending] = useActionState(login, null);
@@ -36,12 +37,9 @@ export default function LoginPage() {
             </Link>
 
             <div className="flex flex-col items-center mb-8 gap-3">
-                {/* ... existing logo code ... */}
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <BarChart3 className="w-7 h-7 text-white" />
-                </div>
+                <Image src="/ph-core-logo.png" alt="PH Core" width={72} height={72} className="shadow-lg" />
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold text-white tracking-tight">PH Hub</h1>
+                    <h1 className="text-2xl font-bold text-white tracking-tight">PH Core</h1>
                     <p className="text-gray-500 text-sm">Plataforma de Gestión de Asambleas</p>
                 </div>
             </div>

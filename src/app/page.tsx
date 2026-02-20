@@ -1,8 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, BarChart3, Lock, Users, Smartphone, Zap, CheckCircle2, Mail, PlayCircle, FileText } from "lucide-react";
+import { ArrowRight, BarChart3, Lock, Users, Smartphone, Zap, CheckCircle2, PlayCircle, FileText } from "lucide-react";
 
 export default function Home() {
   return (
@@ -11,10 +12,8 @@ export default function Home() {
       <nav className="fixed w-full z-50 bg-[#0A0A0A]/50 backdrop-blur-md border-b border-white/5">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">PH Hub</span>
+            <Image src="/ph-core-logo.png" alt="PH Core" width={36} height={36} />
+            <span className="text-xl font-bold tracking-tight">PH Core</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
             <Link href="#features" className="hover:text-white transition-colors">Características</Link>
@@ -253,13 +252,11 @@ export default function Home() {
       <footer className="py-12 border-t border-white/5 bg-[#050505]">
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-              <BarChart3 className="w-3 h-3 text-white" />
-            </div>
-            <span className="font-bold text-gray-200">PH Hub</span>
+            <Image src="/ph-core-logo.png" alt="PH Core" width={24} height={24} />
+            <span className="font-bold text-gray-200">PH Core</span>
           </div>
           <div className="text-sm text-gray-500">
-            © 2026 PH Hub. Todos los derechos reservados.
+            © 2026 PH Core. Todos los derechos reservados.
           </div>
         </div>
       </footer>
