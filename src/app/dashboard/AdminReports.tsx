@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { FileBarChart, Download, Users, UserX, Gavel, FileText, RefreshCw, Loader2 } from "lucide-react";
 import { getAttendanceReport, getAbsenceReport, getVotesReport, getProxiesReport } from "./reports-actions";
 
-export default function AdminReports() {
+export default function AdminReports({ assemblyId }: { assemblyId?: string }) {
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("attendance");
 
@@ -21,16 +21,16 @@ export default function AdminReports() {
         setLoading(true);
         try {
             if (tab === "attendance") {
-                const data = await getAttendanceReport();
+                const data = await getAttendanceReport(assemblyId);
                 setAttendanceData(data);
             } else if (tab === "absence") {
-                const data = await getAbsenceReport();
+                const data = await getAbsenceReport(assemblyId);
                 setAbsenceData(data);
             } else if (tab === "votes") {
-                const data = await getVotesReport();
+                const data = await getVotesReport(assemblyId);
                 setVotesData(data);
             } else if (tab === "proxies") {
-                const data = await getProxiesReport();
+                const data = await getProxiesReport(assemblyId);
                 setProxiesData(data);
             }
         } catch (error) {
@@ -52,8 +52,8 @@ export default function AdminReports() {
         <div className="space-y-6">
             <div className="flex items-center justify-between print:hidden">
                 <h2 className="text-3xl font-bold text-white">Informes y Estadísticas</h2>
-                <Button variant="outline" onClick={() => window.location.href = '/dashboard'} className="border-white/10 text-gray-500 hover:text-white hover:bg-white/10">
-                    ← Volver al Dashboard
+                <Button variant="outline" onClick={() => window.location.href = assemblyId ? `/superadmin/assemblies/${assemblyId}` : '/dashboard'} className="border-white/10 text-gray-500 hover:text-white hover:bg-white/10">
+                    ← Volver
                 </Button>
             </div>
 

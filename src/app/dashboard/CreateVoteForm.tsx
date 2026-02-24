@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Loader2, X, PlusCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function CreateVoteForm() {
+export default function CreateVoteForm({ assemblyId }: { assemblyId: string }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [title, setTitle] = useState("");
@@ -54,7 +54,8 @@ export default function CreateVoteForm() {
                     title,
                     description,
                     status: 'OPEN',
-                    type: 'SINGLE'
+                    type: 'SINGLE',
+                    assembly_id: assemblyId
                 })
                 .select()
                 .single();

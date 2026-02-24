@@ -2,23 +2,43 @@
 
 import { createClient } from "@/lib/supabase/server";
 
-export async function getAttendanceReport() {
+// Helper function to resolve the target assembly ID for the report
+async function getTargetAssemblyId(supabase: any, requestedAssemblyId?: string) {
+    if (requestedAssemblyId) return requestedAssemblyId;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: userProfile } = await supabase
+        .from("users")
+        .select("assembly_id")
+        .eq("id", user.id)
+        .single();
+
+    return userProfile?.assembly_id;
+}
+
+export async function getAttendanceReport(requestedAssemblyId?: string) {
     const supabase = await createClient();
+    const assemblyId = await getTargetAssemblyId(supabase, requestedAssemblyId);
+    if (!assemblyId) return { data: [], totalCoefficient: 0 };
 
-    // Get all units that are PRESENT
-    const { data: attendance } = await supabase
-        .from("attendance_logs")
-        .select(`
-            created_at,
-            units (
-                number,
-                coefficient,
-                users (full_name, document_number)
-            )
-        `)
-        .order("created_at", { ascending: false });
+    let query = supabase.from("attendance_logs").select(`
+        created_at,
+        units!inner (
+            assembly_id,
+            number,
+            coefficient,
+            representative:users!units_representative_id_fkey (full_name, document_number)
+        )
+    `);
 
-    // Calculate total coefficient
+    if (assemblyId) {
+        query = query.eq('units.assembly_id', assemblyId);
+    }
+
+    const { data: attendance } = await query.order("created_at", { ascending: false });
+
     let totalCoefficient = 0;
     const reportData = attendance?.map((item: any) => {
         const coef = item.units?.coefficient || 0;
@@ -26,7 +46,7 @@ export async function getAttendanceReport() {
         return {
             unit: item.units?.number,
             coefficient: coef,
-            representative: item.units?.users?.[0]?.full_name || "Sin Asignar", // Assuming 1 user per unit for simplicity, or grab first
+            representative: item.units?.representative?.full_name || "Sin Asignar",
             checkInTime: new Date(item.created_at).toLocaleString()
         };
     }) || [];
@@ -34,18 +54,22 @@ export async function getAttendanceReport() {
     return { data: reportData, totalCoefficient };
 }
 
-export async function getAbsenceReport() {
+export async function getAbsenceReport(requestedAssemblyId?: string) {
     const supabase = await createClient();
+    const assemblyId = await getTargetAssemblyId(supabase, requestedAssemblyId);
+    if (!assemblyId) return { data: [], totalAbsentCoefficient: 0 };
 
-    // Get ALL units
+    // Get ALL units for assembly
     const { data: allUnits } = await supabase
         .from("units")
-        .select("id, number, coefficient, users(full_name)");
+        .select("id, number, coefficient, representative:users!units_representative_id_fkey(full_name)")
+        .eq("assembly_id", assemblyId);
 
-    // Get PRESENT unit IDs
+    // Get PRESENT unit IDs for assembly
     const { data: presentLogs } = await supabase
         .from("attendance_logs")
-        .select("unit_id");
+        .select("unit_id, units!inner(assembly_id)")
+        .eq("units.assembly_id", assemblyId);
 
     const presentIds = new Set(presentLogs?.map((l: any) => l.unit_id));
 
@@ -59,45 +83,38 @@ export async function getAbsenceReport() {
         return {
             unit: u.number,
             coefficient: coef,
-            representative: u.users?.[0]?.full_name || "Sin Asignar"
+            representative: u.representative?.full_name || "Sin Asignar"
         };
     });
 
     return { data: reportData, totalAbsentCoefficient };
 }
 
-export async function getVotesReport() {
+export async function getVotesReport(requestedAssemblyId?: string) {
     const supabase = await createClient();
+    // currently votes are not bound by assembly_id in schema, so we just return them all.
+    // If they were, we would filter by eq('assembly_id', assemblyId)
 
-    // Get all votes with options
     const { data: votes } = await supabase
         .from("votes")
         .select("*, vote_options(*)")
         .order("created_at", { ascending: false });
 
-    // For each vote, get results (this might be heavy with many votes, better to fetch on demand per vote, but user asked for "Results report")
-    // We'll return the list of votes, and maybe the client fetches details, OR we fetch refined summaries here.
-    // Let's do a summary here.
-
     const reports = [];
 
     if (votes) {
         for (const vote of votes) {
-            // Get ballots for this vote
             const { data: ballots } = await supabase
                 .from("ballots")
-                .select("option_id, weight, units(number)") // We track who voted for what? Or just totals? "Resultados detallados" usually implies who voted what is secret? 
-                // Creating a simplified result: Option | Votes | Weight | %
+                .select("option_id, weight, units(number)")
                 .eq("vote_id", vote.id);
 
             const results: Record<string, { count: number, weight: number, name: string }> = {};
 
-            // Init options
             vote.vote_options?.forEach((opt: any) => {
                 results[opt.id] = { count: 0, weight: 0, name: opt.option_text };
             });
 
-            // Tally
             let totalVoteWeight = 0;
             ballots?.forEach((b: any) => {
                 if (results[b.option_id]) {
@@ -125,25 +142,32 @@ export async function getVotesReport() {
     return reports;
 }
 
-export async function getProxiesReport() {
+export async function getProxiesReport(requestedAssemblyId?: string) {
     const supabase = await createClient();
+    const assemblyId = await getTargetAssemblyId(supabase, requestedAssemblyId);
+    if (!assemblyId) return [];
 
-    const { data: proxies } = await supabase
+    let query = supabase
         .from("proxies")
         .select(`
             *,
-            principal:users!proxies_principal_id_fkey(full_name, document_number, units(number, coefficient)),
+            principal:users!proxies_principal_id_fkey!inner(full_name, assembly_id, document_number, units(number, coefficient)),
             representative:users!proxies_representative_id_fkey(full_name, document_number)
-        `)
-        .order("created_at", { ascending: false });
+        `);
+
+    if (assemblyId) {
+        query = query.eq('principal.assembly_id', assemblyId);
+    }
+
+    const { data: proxies } = await query.order("created_at", { ascending: false });
 
     return proxies?.map((p: any) => ({
         id: p.id,
         type: p.type,
         status: p.status,
         principal: p.principal?.full_name,
-        principalUnit: p.principal?.units?.number,
-        principalCoef: p.principal?.units?.coefficient,
+        principalUnit: p.principal?.units?.[0]?.number || "—",
+        principalCoef: p.principal?.units?.[0]?.coefficient || 0,
         representative: p.representative?.full_name || p.external_name || "Desconocido",
         representativeDoc: p.representative?.document_number || p.external_doc_number,
         date: new Date(p.created_at).toLocaleDateString()

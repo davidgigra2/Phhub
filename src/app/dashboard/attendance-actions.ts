@@ -83,10 +83,10 @@ export async function registerAttendanceByDocument(documentNumber: string) {
             return { success: false, message: "No tienes permisos de Operador." };
         }
 
-        // 1. Find User by Document Number (Simple Scalar Query)
+        // 1. Find User by Document Number
         const { data: targetUser, error: userError } = await supabase
             .from("users")
-            .select("id, full_name, role, unit_id")
+            .select("id, full_name, role")
             .eq("document_number", documentNumber)
             .single();
 
@@ -100,39 +100,38 @@ export async function registerAttendanceByDocument(documentNumber: string) {
             return { success: false, message: `El usuario ${targetUser.full_name} no es un Asambleísta (Rol: ${targetUser.role}).` };
         }
 
-        // 3. Validate Unit (Explicit Fetch)
-        if (!targetUser.unit_id) {
-            return { success: false, message: `El usuario ${targetUser.full_name} no tiene unidad asignada (unit_id null).` };
-        }
-
-        const { data: unit, error: unitError } = await supabase
+        // 3. Find All Units Represented by this User
+        const { data: units, error: unitsError } = await supabase
             .from("units")
             .select("id, number")
-            .eq("id", targetUser.unit_id)
-            .single();
+            .eq("representative_id", targetUser.id);
 
-        if (unitError || !unit) {
-            console.warn("Unit fetch failed:", unitError);
-            return { success: false, message: `Error al buscar la unidad ${targetUser.unit_id}.` };
+        if (unitsError || !units || units.length === 0) {
+            console.warn("Units fetch failed or empty:", unitsError);
+            return { success: false, message: `El usuario ${targetUser.full_name} no representa ninguna unidad actualmente.` };
         }
 
-        // 4. Register Attendance
+        // 4. Register Attendance for ALL represented units
+        const logsToInsert = units.map(u => ({ unit_id: u.id, user_id: targetUser.id }));
+
         const { error: attendanceError } = await supabase
             .from("attendance_logs")
-            .upsert({ unit_id: unit.id }, { onConflict: 'unit_id' });
+            .upsert(logsToInsert, { onConflict: 'unit_id' });
 
         if (attendanceError) {
             console.error("Error registering via document:", attendanceError);
             return { success: false, message: `Error BD: ${attendanceError.message}` };
         }
 
+        const unitNumbers = units.map(u => u.number).join(', ');
+
         revalidatePath("/dashboard");
         return {
             success: true,
-            message: `Asistencia registrada: ${targetUser.full_name} (Unidad ${unit.number})`,
+            message: `Asistencia registrada: ${targetUser.full_name} (Unidades: ${unitNumbers})`,
             data: {
                 name: targetUser.full_name,
-                unit: unit.number
+                unit: unitNumbers
             }
         };
 

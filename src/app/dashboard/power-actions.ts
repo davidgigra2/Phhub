@@ -100,49 +100,31 @@ export async function revokeProxy(proxyId: string) {
 export async function getMyPowerStats(userId: string) {
     const supabase = await createClient();
 
-    // 1. My Unit weight
-    const { data: myUser } = await supabase
-        .from("users")
-        .select("*, units(coefficient)")
-        .eq("id", userId)
-        .single();
+    // With the new 1:N schema, all units represented by the user are found where representative_id = userId
+    const { data: representedUnitsData } = await supabase
+        .from("units")
+        .select("number, coefficient, owner_document_number")
+        .eq("representative_id", userId);
 
-    const myWeight = myUser?.units?.coefficient || 0;
-
-    // 2. Represented weights
-    const { data: proxies } = await supabase
-        .from("proxies")
-        .select(`
-            principal_id,
-            users!proxies_principal_id_fkey (
-                full_name,
-                units (
-                    coefficient,
-                    number
-                )
-            )
-        `)
-        .eq("representative_id", userId)
-        .eq("status", "APPROVED");
-
-    let representedWeight = 0;
+    let totalWeight = 0;
     const representedUnits: any[] = [];
 
-    proxies?.forEach((p: any) => {
-        const u = p.users;
-        const coef = u.units?.coefficient || 0;
-        representedWeight += coef;
+    // Assuming we can identify whether a unit is "owned" by them vs "proxied"
+    // For now, ANY unit they represent adds to their weight.
+    representedUnitsData?.forEach((u: any) => {
+        const coef = u.coefficient || 0;
+        totalWeight += coef;
         representedUnits.push({
-            name: u.full_name,
-            unit: u.units?.number,
+            name: u.owner_document_number || "Usuario",
+            unit: u.number,
             coefficient: coef
         });
     });
 
     return {
-        ownWeight: myWeight,
-        representedWeight,
-        totalWeight: myWeight + representedWeight,
+        ownWeight: totalWeight, // We unify this now since they simply represent a total pool of weight
+        representedWeight: 0,   // Included in totalWeight
+        totalWeight: totalWeight,
         representedUnits
     };
 }

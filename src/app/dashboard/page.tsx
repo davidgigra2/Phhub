@@ -19,6 +19,7 @@ import UserQRCard from './UserQRCard';
 import OperatorAttendance from './OperatorAttendance';
 import PowerManagement from './PowerManagement';
 import AdminReports from './AdminReports';
+import { getMyPowerStats } from './power-actions';
 
 export default async function DashboardPage() {
     const supabase = await createClient()
@@ -31,25 +32,28 @@ export default async function DashboardPage() {
         return redirect('/login')
     }
 
-    // Fetch user profile and unit details
+    // Fetch user profile
     const { data: userProfile, error } = await supabase
         .from('users')
-        .select(`
-            *,
-            units (
-                number,
-                coefficient
-            )
-        `)
+        .select('*')
         .eq('id', user.id)
         .single()
+
+    // Fetch represented units (Own + Proxies)
+    const { data: representedUnits } = await supabase
+        .from('units')
+        .select('id, number, coefficient')
+        .eq('representative_id', user.id)
+        .order('number');
+
+    const totalCoefficient = (representedUnits || []).reduce((sum, u) => sum + Number(u.coefficient || 0), 0);
 
     const isAdmin = userProfile?.role === 'ADMIN';
     const isOperator = userProfile?.role === 'OPERATOR'; // Strict separation as requested
 
     // Fetch proxies data (Given and Received)
     let givenProxy = null;
-    let receivedProxies: any[] = [];
+    let powerStats = null;
 
     if (!isAdmin) {
         // Did I give power?
@@ -61,23 +65,11 @@ export default async function DashboardPage() {
             .single();
         givenProxy = given;
 
-        // Did I receive powers?
-        const { data: received } = await supabase
-            .from('proxies')
-            .select(`
-                *, 
-                principal:users!proxies_principal_id_fkey(
-                    full_name, 
-                    id, 
-                    units(number, coefficient)
-                )
-            `)
-            .eq('representative_id', user.id)
-            .eq('status', 'APPROVED');
-        receivedProxies = received || [];
+        // Did I receive powers? Grab stats
+        powerStats = await getMyPowerStats(user.id);
     }
 
-    // Fetch votes logic (Admin sees ALL, User sees only OPEN)
+    // Fetch votes logic (Admin sees ALL in their assembly, User sees only OPEN)
     let voteQuery = supabase
         .from('votes')
         .select(`
@@ -86,6 +78,11 @@ export default async function DashboardPage() {
             ballots (user_id)
         `)
         .order('created_at', { ascending: false });
+
+    // Filter by assembly if user has one
+    if (userProfile?.assembly_id) {
+        voteQuery = voteQuery.eq('assembly_id', userProfile.assembly_id);
+    }
 
     if (!isAdmin) {
         voteQuery = voteQuery.eq('status', 'OPEN');
@@ -100,7 +97,9 @@ export default async function DashboardPage() {
     }
 
     const userRole = userProfile?.role ? (roleMap[userProfile.role] || userProfile.role) : 'Usuario'
-    const displayUnit = userProfile?.represented_unit || userProfile?.units?.number || 'Sin Unidad'
+    const displayUnit = representedUnits && representedUnits.length > 0
+        ? representedUnits.map(u => u.number).join(', ')
+        : 'Sin Unidad'
 
     if (error) {
         console.error('Error fetching dashboard profile:', error)
@@ -170,26 +169,26 @@ export default async function DashboardPage() {
 
                     {/* Show Coefficient ONLY for Property Owners (Asambleístas) */}
                     {userProfile?.role === 'USER' && (
-                        userProfile?.units ? (
+                        representedUnits && representedUnits.length > 0 ? (
                             <Card className="bg-[#121212] border-white/5">
                                 <CardHeader>
-                                    <CardTitle className="text-gray-200">Tu Coeficiente</CardTitle>
+                                    <CardTitle className="text-gray-200">Tu Coeficiente Total</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-3xl font-bold text-white">
-                                        {Number(userProfile.units.coefficient).toFixed(4)}
+                                        {totalCoefficient.toFixed(4)}
                                     </div>
-                                    <p className="text-sm text-gray-500 mt-2">Peder de voto</p>
+                                    <p className="text-sm text-gray-500 mt-2">Poder de voto ({representedUnits.length} unidades)</p>
                                 </CardContent>
                             </Card>
                         ) : (
                             <Card className="bg-[#121212] border-white/5">
                                 <CardHeader>
-                                    <CardTitle className="text-gray-200">Total Unidades</CardTitle>
+                                    <CardTitle className="text-gray-200">Unidades</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold text-white">--</div>
-                                    <p className="text-sm text-gray-500 mt-2">Registradas</p>
+                                    <div className="text-3xl font-bold text-white">0</div>
+                                    <p className="text-sm text-gray-500 mt-2">No tienes propiedades asignadas</p>
                                 </CardContent>
                             </Card>
                         )
@@ -208,9 +207,9 @@ export default async function DashboardPage() {
                 {!isAdmin && (
                     <PowerManagement
                         userId={user.id}
-                        userRole={userProfile?.role} // Pass role
+                        userRole={userProfile?.role}
                         givenProxy={givenProxy}
-                        receivedProxies={receivedProxies}
+                        receivedProxies={powerStats?.representedUnits || []}
                     />
                 )}
 
@@ -230,7 +229,7 @@ export default async function DashboardPage() {
                     {/* Grid Layout: Includes Create Form + Votes */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Admin Create Card (Always First) */}
-                        {isAdmin && <CreateVoteForm />}
+                        {isAdmin && <CreateVoteForm assemblyId={userProfile?.assembly_id || ''} />}
 
                         {/* Vote Cards */}
                         {votes && votes.map((vote) => {

@@ -1,0 +1,24 @@
+No phone available for 1001001
+Email result for davidgigra@gmail.com: {"success":false,"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials a1e0cc1a2514c-94da8996314sm5906247241.2 - gsmtp"}
+No phone available for 2002002
+Email result for valen.tk97@gmail.com: {"success":false,"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials a1e0cc1a2514c-94da8a05060sm5901062241.6 - gsmtp"}
+No phone available for 3003003
+Email result for sofitorresking@gmail.com: {"success":false,"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials a1e0cc1a2514c-94da8816298sm6179092241.0 - gsmtp"}
+No phone available for 9009009
+Email result for julioctn.05@gmail.com: {"success":false,"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-568f60e0419sm3406446e0c.5 - gsmtp"}
+No phone available for 1001001
+Email result for davidgigra@gmail.com: {"success":true,"messageId":"<9b29624c-1e13-2046-b088-4c38af6016bb@gmail.com>"}
+No phone available for 2002002
+Email result for valen.tk97@gmail.com: {"success":true,"messageId":"<3f79987d-69c6-3088-4c15-bcf98d5f5f08@gmail.com>"}
+No phone available for 3003003
+Email result for sofitorresking@gmail.com: {"success":true,"messageId":"<83f6b09f-4c73-70a5-4eaf-9746c7bf44ad@gmail.com>"}
+No phone available for 9009009
+Email result for julioctn.05@gmail.com: {"success":true,"messageId":"<0ef8e3b0-e4ba-e539-5b94-1de3d7909e84@gmail.com>"}
+SMS result for 573226258229: {"success":true,"data":{"subid":"699bd534c7118","code":"0","message":"Message has been successfully sent."}}
+Email result for davidgigra@gmail.com: {"success":true,"messageId":"<e5dbe64c-1d73-f0fa-7898-590a41b98fe6@gmail.com>"}
+SMS result for 573216668541: {"success":true,"data":{"subid":"699bd53638a76","code":"0","message":"Message has been successfully sent."}}
+Email result for valen.tk97@gmail.com: {"success":true,"messageId":"<35c4f564-b115-1a5c-edc6-b2858d592790@gmail.com>"}
+SMS result for 573053601190: {"success":true,"data":{"subid":"699bd537a8d71","code":"0","message":"Message has been successfully sent."}}
+Email result for sofitorresking@gmail.com: {"success":true,"messageId":"<0b402437-621d-6c6d-8c9d-6e6bc5d4c5bb@gmail.com>"}
+SMS result for 573122630280: {"success":true,"data":{"subid":"699bd53922f77","code":"0","message":"Message has been successfully sent."}}
+Email result for julioctn.05@gmail.com: {"success":true,"messageId":"<56ffbfaf-55c8-fe80-8dd8-851797d1e51b@gmail.com>"}

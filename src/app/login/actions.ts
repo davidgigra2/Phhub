@@ -10,15 +10,23 @@ export async function login(prevState: any, formData: FormData) {
     const usernameInput = formData.get('username') as string
     const password = formData.get('password') as string
 
-    // 1. Try to resolve username to email via RPC
-    const { data: emailData, error: rpcError } = await supabase.rpc('get_email_by_username', {
-        p_username: usernameInput
-    })
+    // 1. Resolve username → email
+    let emailToUse = usernameInput;
+    if (!emailToUse.includes('@')) {
+        const { data: emailData } = await supabase.rpc('get_email_by_username', {
+            p_username: usernameInput
+        });
+        emailToUse = emailData || `${usernameInput}@phcore.local`;
+    } else {
+        // If it includes '@', it's already an email or an email-like username
+        const { data: emailData } = await supabase.rpc('get_email_by_username', {
+            p_username: usernameInput
+        });
+        emailToUse = emailData || usernameInput;
+    }
 
-    // Determine what email to use: the resolved one, or the input itself (if it was an email)
-    const emailToUse = emailData || usernameInput
-
-    const { error } = await supabase.auth.signInWithPassword({
+    // 2. Sign in
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: emailToUse,
         password,
     })
@@ -26,6 +34,21 @@ export async function login(prevState: any, formData: FormData) {
     if (error) {
         console.error("Login Error:", error.message)
         return { error: 'Usuario o contraseña incorrectos' }
+    }
+
+    // 3. Check role and redirect accordingly
+    const userId = authData.user?.id
+    if (userId) {
+        const { data: profile } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', userId)
+            .single()
+
+        revalidatePath('/', 'layout')
+        if (profile?.role === 'SUPER_ADMIN') {
+            redirect('/superadmin')
+        }
     }
 
     revalidatePath('/', 'layout')
