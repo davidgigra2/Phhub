@@ -208,6 +208,7 @@ export default async function DashboardPage() {
                         userRole={userProfile?.role}
                         givenProxy={givenProxy}
                         receivedProxies={powerStats?.representedUnits || []}
+                        ownWeight={powerStats?.ownWeight || 0}
                     />
                 )}
 

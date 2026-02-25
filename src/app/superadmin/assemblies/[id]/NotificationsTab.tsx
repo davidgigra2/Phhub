@@ -135,6 +135,9 @@ export default function NotificationsTab({ assemblyId }: NotificationsTabProps) 
         if (activeType === "WELCOME") {
             return ["{{name}}", "{{doc_number}}", "{{password}}", "{{appUrl}}", "{{assembly_name}}"];
         }
+        if (activeType === "PROXY_DOCUMENT") {
+            return ["{{NOMBRE_PODERDANTE}}", "{{CEDULA_PODERDANTE}}", "{{NOMBRE_APODERADO}}", "{{CEDULA_APODERADO}}", "{{FECHA_ASAMBLEA}}", "{{CIUDAD}}", "{{DIA}}", "{{MES}}", "{{ANIO}}", "{{OTP}}", "{{TIMESTAMP}}"];
+        }
         return ["{{name}}", "{{units}}", "{{coef}}", "{{otp_code}}", "{{appUrl}}", "{{assembly_name}}"];
     };
 
@@ -162,10 +165,17 @@ export default function NotificationsTab({ assemblyId }: NotificationsTabProps) 
                         <Button
                             variant="ghost"
                             className={`w-full justify-start transition-colors ${activeType === 'OTP_SIGN' ? 'bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 hover:text-indigo-200' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                            onClick={() => setActiveType('OTP_SIGN')}
+                            onClick={() => { setActiveType('OTP_SIGN'); setActiveChannel('EMAIL'); }}
                         >
                             Firma de Poderes (OTP)
                             <span className="ml-auto text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 rounded">Pronto</span>
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            className={`w-full justify-start transition-colors ${activeType === 'PROXY_DOCUMENT' ? 'bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 hover:text-indigo-200' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                            onClick={() => { setActiveType('PROXY_DOCUMENT'); setActiveChannel('EMAIL'); }}
+                        >
+                            Plantilla de Poder (PDF)
                         </Button>
                     </div>
 
@@ -173,8 +183,14 @@ export default function NotificationsTab({ assemblyId }: NotificationsTabProps) 
                     <div className="md:col-span-3 space-y-4">
                         <Tabs value={activeChannel} onValueChange={(v) => setActiveChannel(v as NotificationChannel)}>
                             <TabsList className="bg-[#1A1A1A] w-full justify-start border-b border-white/10 rounded-none h-auto p-0 pb-px">
-                                <TabsTrigger value="EMAIL" className="rounded-none data-[state=active]:bg-transparent data-[state=active]:text-indigo-400 data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 py-3 px-6 text-gray-400 hover:text-gray-200"><Mail className="w-4 h-4 mr-2" /> Correo (Email)</TabsTrigger>
-                                <TabsTrigger value="SMS" className="rounded-none data-[state=active]:bg-transparent data-[state=active]:text-indigo-400 data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 py-3 px-6 text-gray-400 hover:text-gray-200"><Smartphone className="w-4 h-4 mr-2" /> Celular (SMS)</TabsTrigger>
+                                <TabsTrigger value="EMAIL" className="rounded-none data-[state=active]:bg-transparent data-[state=active]:text-indigo-400 data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 py-3 px-6 text-gray-400 hover:text-gray-200">
+                                    <Mail className="w-4 h-4 mr-2" /> {activeType === 'PROXY_DOCUMENT' ? 'Documento / Plantilla' : 'Correo (Email)'}
+                                </TabsTrigger>
+                                {activeType !== 'PROXY_DOCUMENT' && (
+                                    <TabsTrigger value="SMS" className="rounded-none data-[state=active]:bg-transparent data-[state=active]:text-indigo-400 data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 py-3 px-6 text-gray-400 hover:text-gray-200">
+                                        <Smartphone className="w-4 h-4 mr-2" /> Celular (SMS)
+                                    </TabsTrigger>
+                                )}
                             </TabsList>
                         </Tabs>
 

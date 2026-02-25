@@ -4,7 +4,7 @@ import { useActionState, useState } from 'react';
 import { editAssembly } from '../actions';
 import { Building2, Edit2, X, Loader2 } from 'lucide-react';
 
-export default function EditAssemblyModal({ assembly }: { assembly: { id: string, name: string, nit: string | null, address: string | null } }) {
+export default function EditAssemblyModal({ assembly }: { assembly: { id: string, name: string, nit: string | null, address: string | null, city?: string | null, date?: string | null } }) {
     const [open, setOpen] = useState(false);
     const [state, action, pending] = useActionState(async (prev: any, fd: FormData) => {
         const res = await editAssembly(prev, fd);
@@ -65,6 +65,26 @@ export default function EditAssemblyModal({ assembly }: { assembly: { id: string
                                     placeholder="Calle 123 #45-67"
                                     className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
                                 />
+                            </div>
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label className="block text-sm text-gray-300 mb-1.5">Ciudad</label>
+                                    <input
+                                        name="city"
+                                        defaultValue={assembly.city || ''}
+                                        placeholder="Bogotá"
+                                        className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-sm text-gray-300 mb-1.5">Fecha</label>
+                                    <input
+                                        name="date"
+                                        type="date"
+                                        defaultValue={assembly.date ? new Date(assembly.date).toISOString().split('T')[0] : ''}
+                                        className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+                                    />
+                                </div>
                             </div>
 
                             {state?.error && (

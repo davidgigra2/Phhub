@@ -20,13 +20,24 @@ export async function createAssembly(prevState: any, formData: FormData) {
     const name = formData.get('name') as string;
     const address = formData.get('address') as string;
     const nit = formData.get('nit') as string;
+    const city = formData.get('city') as string;
+    const dateStr = formData.get('date') as string;
 
     if (!name?.trim()) return { error: 'El nombre es requerido' };
+
+    const parsedDate = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString();
 
     const admin = getServiceClient();
     const { data, error } = await admin
         .from('assemblies')
-        .insert({ name: name.trim(), address: address?.trim() || null, nit: nit?.trim() || null, created_by: user.id })
+        .insert({
+            name: name.trim(),
+            address: address?.trim() || null,
+            nit: nit?.trim() || null,
+            city: city?.trim() || 'Bogotá',
+            date: parsedDate,
+            created_by: user.id
+        })
         .select()
         .single();
 
@@ -84,14 +95,26 @@ export async function editAssembly(prevState: any, formData: FormData) {
     const name = formData.get('name') as string;
     const address = formData.get('address') as string;
     const nit = formData.get('nit') as string;
+    const city = formData.get('city') as string;
+    const dateStr = formData.get('date') as string;
 
     if (!id) return { error: 'ID de asamblea requerido' };
     if (!name?.trim()) return { error: 'El nombre es requerido' };
 
+    const updates: any = {
+        name: name.trim(),
+        address: address?.trim() || null,
+        nit: nit?.trim() || null,
+        city: city?.trim() || 'Bogotá'
+    };
+    if (dateStr) {
+        updates.date = new Date(dateStr).toISOString();
+    }
+
     const admin = getServiceClient();
     const { data, error } = await admin
         .from('assemblies')
-        .update({ name: name.trim(), address: address?.trim() || null, nit: nit?.trim() || null })
+        .update(updates)
         .eq('id', id)
         .select()
         .single();

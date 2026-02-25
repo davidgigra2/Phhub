@@ -77,7 +77,7 @@ export async function sendSMS(to: string, body: string) {
             },
             body: JSON.stringify({
                 message: body,
-                tpoa: "Sender", // Max 11 alphanumeric characters or max 15 digits
+                tpoa: "Aviso",
                 recipient: [
                     { msisdn: cleanTo } // Must include country code without '+', e.g., '57...'
                 ]

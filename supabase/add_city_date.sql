@@ -1,0 +1,2 @@
+ALTER TABLE public.assemblies ADD COLUMN IF NOT EXISTS city TEXT DEFAULT 'Bogotá';
+ALTER TABLE public.assemblies ADD COLUMN IF NOT EXISTS date TIMESTAMPTZ DEFAULT now();

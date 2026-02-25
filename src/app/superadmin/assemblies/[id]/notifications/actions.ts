@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { sendEmail, sendSMS } from "@/lib/notifications";
 import * as fs from 'fs';
 
-export type NotificationType = "WELCOME" | "OTP_SIGN";
+export type NotificationType = "WELCOME" | "OTP_SIGN" | "PROXY_DOCUMENT";
 export type NotificationChannel = "EMAIL" | "SMS";
 
 export interface NotificationTemplate {
@@ -289,7 +289,7 @@ const DEFAULT_TEMPLATES: Record<NotificationType, Record<NotificationChannel, { 
     },
     SMS: {
       subject: null,
-      body: "Asamblea {{assembly_name}} | PH Core Latam\n\nSus datos para ingresar a la plataforma:\n👤 Usuario: {{doc_number}}\n🔑 Contraseña: {{password}}\n🌐 Ingrese aquí: {{appUrl}}/login?user={{doc_number}}\n⚠️ Si no puede asistir, suba su poder desde ya en la plataforma.\n📩 Revise su correo para más información."
+      body: "Asamblea {{assembly_name}} | PH Core Latam\n\nSus datos para ingresar a la plataforma:\nUsuario: {{doc_number}}\nContrasena: {{password}}\nIngrese aqui: {{appUrl}}/login?user={{doc_number}}\nSi no puede asistir, suba su poder desde ya en la plataforma.\nRevise su correo para mas informacion."
     }
   },
   OTP_SIGN: {
@@ -386,23 +386,57 @@ const DEFAULT_TEMPLATES: Record<NotificationType, Record<NotificationChannel, { 
     },
     SMS: {
       subject: null,
-      body: `Asamblea {{assembly_name}} | PH Core Latam\n\nSu código de verificación para firmar digitalmente su poder es:\n🔐 {{otp_code}}\n\nVálido por 30 minutos. No lo comparta con nadie.`
+      body: `PHCore\nSu codigo de firma es {{otp_code}}\nNo lo comparta.`
+    }
+  },
+  PROXY_DOCUMENT: {
+    EMAIL: {
+      subject: "Poder para Representación",
+      body: `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+  <h2 style="text-align: center; text-transform: uppercase; color: #333;">PODER PARA REPRESENTACIÓN EN ASAMBLEA GENERAL DE COPROPIETARIOS</h2>
+  <br/>
+  <p style="line-height: 1.6; color: #444; font-size: 16px;">Yo, <strong>{{NOMBRE_PODERDANTE}}</strong>, mayor de edad, identificado(a) con cédula de ciudadanía No. <strong>{{CEDULA_PODERDANTE}}</strong>, en mi calidad de propietario(a) dentro de la copropiedad, por medio del presente escrito confiero poder amplio y suficiente a <strong>{{NOMBRE_APODERADO}}</strong>, identificado(a) con cédula de ciudadanía No. <strong>{{CEDULA_APODERADO}}</strong>, para que me represente con voz y voto en la Asamblea General de Copropietarios, ordinaria o extraordinaria, que se realizará el día <strong>{{FECHA_ASAMBLEA}}</strong>, o en la fecha en que esta sea aplazada o reanudada.</p>
+  
+  <p style="line-height: 1.6; color: #444; font-size: 16px;">Este poder se otorga de conformidad con lo dispuesto en el artículo 37 de la Ley 675 de 2001, que autoriza la representación mediante poder escrito.</p>
+  
+  <p style="line-height: 1.6; color: #444; font-size: 16px;">El(la) apoderado(a) queda facultado(a) para:</p>
+  <ul style="line-height: 1.6; color: #444; font-size: 16px;">
+    <li>Participar en las deliberaciones.</li>
+    <li>Votar en mi nombre todas las proposiciones sometidas a consideración.</li>
+    <li>Postular y elegir miembros del consejo de administración y demás órganos de la copropiedad, cuando sea el caso.</li>
+    <li>Ejercer plenamente mis derechos como propietario(a) durante la asamblea.</li>
+  </ul>
+  
+  <p style="line-height: 1.6; color: #444; font-size: 16px;">En constancia se firma en <strong>{{CIUDAD}}</strong>, el día <strong>{{DIA}}</strong> del mes de <strong>{{MES}}</strong> de <strong>{{ANIO}}</strong>.</p>
+  <br/><br/>
+  <div style="border: 2px dashed #1a6faf; padding: 15px; margin-bottom: 20px; background-color: #f4f9fd; border-radius: 8px; max-width: 400px; display: inline-block;">
+    <p style="margin: 0 0 10px; font-weight: bold; color: #0d3b6e; font-size: 16px;">Firma Digital Verificada en Plataforma</p>
+    <p style="margin: 0 0 5px; font-size: 15px; color: #333;"><strong>Código de Verificación OTP:</strong> <span style="font-family: monospace; font-size: 18px; color: #1a6faf;">{{OTP}}</span></p>
+    <p style="margin: 0; font-size: 15px; color: #333;"><strong>Sello de tiempo:</strong> {{TIMESTAMP}}</p>
+  </div>
+  <p style="line-height: 1.6; color: #444; font-size: 16px;">___________________________________________________<br/>
+  <strong>{{NOMBRE_PODERDANTE}}</strong><br/>
+  C.C. No. <strong>{{CEDULA_PODERDANTE}}</strong></p>
+  <br/>
+</div>`
+    },
+    SMS: {
+      subject: null,
+      body: ""
     }
   }
 };
 
 export async function getTemplate(assemblyId: string, type: NotificationType, channel: NotificationChannel): Promise<NotificationTemplate> {
-  const supabase = await createClient();
-
-  // Verify SuperAdmin
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
-  if (profile?.role !== 'SUPER_ADMIN') throw new Error("Forbidden");
+  const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
+  const admin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
 
   // Fetch from DB
-  const { data } = await supabase
+  const { data } = await admin
     .from('notification_templates')
     .select('*')
     .eq('assembly_id', assemblyId)
