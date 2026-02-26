@@ -294,48 +294,29 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
                 const { getProxyDocumentContent } = await import("./power-actions");
                 const res = await getProxyDocumentContent({ proxyId });
                 if (res.success && res.html) {
-                    // Use an iframe to isolate from global CSS that might contain lab() or oklch() colors which crash html2canvas
-                    const iframe = document.createElement("iframe");
-                    iframe.style.position = "absolute";
-                    iframe.style.left = "-9999px";
-                    iframe.style.top = "0";
-                    iframe.style.width = "800px";
-                    iframe.style.height = "1200px"; // give enough height
-                    document.body.appendChild(iframe);
+                    // Use a fixed off-screen div appended to the body to ensure html2canvas can compute styles properly
+                    // ─────────────────────────────────────────────────────────
+                    // 3. Backend PDF Generation using Puppeteer (Server-side)
+                    // ─────────────────────────────────────────────────────────
+                    console.log("Solicitando PDF al servidor...");
+                    const response = await fetch('/api/proxy-pdf', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            html: res.html,
+                            fileName: `proxy-${proxyId}.pdf`
+                        })
+                    });
 
-                    const doc = iframe.contentWindow?.document;
-                    if (!doc) throw new Error("Could not access iframe document");
+                    if (!response.ok) {
+                        const err = await response.text();
+                        console.error("API Error generating PDF:", err);
+                        throw new Error("Fallo al generar PDF en el servidor.");
+                    }
 
-                    doc.open();
-                    doc.write(`
-                        <html>
-                        <head>
-                            <style>
-                                body { background-color: white; color: #000; font-family: sans-serif; padding: 40px; margin: 0; }
-                                * { box-sizing: border-box; }
-                            </style>
-                        </head>
-                        <body>
-                            ${res.html}
-                        </body>
-                        </html>
-                    `);
-                    doc.close();
-
-                    await new Promise(r => setTimeout(r, 800)); // allow fonts to load
-
-                    const html2canvas = (await import("html2canvas")).default;
-                    const { jsPDF } = await import("jspdf");
-
-                    const canvas = await html2canvas(doc.body, { scale: 2, useCORS: true, logging: false });
-                    document.body.removeChild(iframe);
-
-                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-                    const pdfBlob = pdf.output('blob');
+                    const pdfBlob = await response.blob();
+                    console.log("PDF generado por el servidor, tamaño:", pdfBlob.size);
+                    // ─────────────────────────────────────────────────────────
 
                     const { createClient } = await import("@/lib/supabase/client");
                     const supabase = createClient();
@@ -450,6 +431,8 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
 export default function PowerManagement({ userId, userRole, givenProxy, receivedProxies = [], ownWeight = 0 }: PowerManagementProps) {
     const isOperator = userRole === 'OPERATOR';
     const [isExpanded, setIsExpanded] = useState(!isOperator);
+    const [showRevokeDialog, setShowRevokeDialog] = useState(false);
+    const [activeTab, setActiveTab] = useState((userRole === 'USER' && ownWeight === 0 && !givenProxy) ? "receive" : "give");
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -564,7 +547,6 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
     };
 
     const handleRevoke = async (proxyId: string) => {
-        if (!confirm("¿Estás seguro de revocar este poder?")) return;
         setLoading(true);
         try {
             const result = await revokeProxy(proxyId);
@@ -637,7 +619,7 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                         <SuccessScreen proxyId={registeredProxyId} userId={userId} />
                     ) : (
                         <>
-                            <Tabs defaultValue={(userRole === 'USER' && ownWeight === 0 && !givenProxy) ? "receive" : "give"} className="w-full">
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                                 <TabsList className={cn(
                                     "grid w-full bg-[#1A1A1A] h-12 rounded-xl",
                                     userRole === 'USER' && (ownWeight > 0 || givenProxy) ? "grid-cols-2" : "grid-cols-1"
@@ -705,14 +687,53 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                                 </Dialog>
                                             )}
 
-                                            <Button
-                                                onClick={() => handleRevoke(givenProxy.id)}
-                                                disabled={loading}
-                                                className="w-full h-14 text-base font-bold bg-red-900/20 hover:bg-red-900/40 text-red-400 border-2 border-red-900/50 rounded-xl"
-                                            >
-                                                {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <XCircle className="w-5 h-5 mr-2" />}
-                                                Revocar Poder
-                                            </Button>
+                                            <Dialog open={showRevokeDialog} onOpenChange={setShowRevokeDialog}>
+                                                <DialogTrigger asChild>
+                                                    <Button
+                                                        disabled={loading}
+                                                        className="w-full h-14 text-base font-bold bg-red-900/20 hover:bg-red-900/40 text-red-400 border-2 border-red-900/50 rounded-xl"
+                                                    >
+                                                        {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <XCircle className="w-5 h-5 mr-2" />}
+                                                        Revocar Poder
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent className="sm:max-w-md bg-[#1E1E1E] border-white/10 text-white rounded-2xl mx-auto w-[90vw]">
+                                                    <DialogHeader className="p-6 pb-0">
+                                                        <DialogTitle className="text-xl flex items-center gap-2 text-red-400">
+                                                            <AlertCircle className="w-6 h-6" />
+                                                            Confirmar Revocación
+                                                        </DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="p-6 space-y-4">
+                                                        <p className="text-gray-300 text-base leading-relaxed">
+                                                            ¿Estás seguro que deseas revocar este poder de representación?
+                                                            Esta acción anulará el código de verificación o documento actual.
+                                                        </p>
+                                                        <div className="flex gap-3 justify-end pt-4">
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                onClick={() => setShowRevokeDialog(false)}
+                                                                className="text-gray-400 hover:text-white"
+                                                            >
+                                                                Cancelar
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                disabled={loading}
+                                                                onClick={() => {
+                                                                    handleRevoke(givenProxy.id);
+                                                                    setShowRevokeDialog(false);
+                                                                }}
+                                                                className="bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
+                                                            >
+                                                                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                                Continuar y Revocar
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
                                         </div>
                                     ) : ownWeight > 0 ? (
                                         <form onSubmit={handleGrant} className="space-y-6">
@@ -848,12 +869,22 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                                                                 type="button"
                                                                 onClick={handleSendOTP}
                                                                 disabled={sendingOtp || !repDoc || !repName}
-                                                                className="w-full h-16 text-base font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-40 flex items-center justify-center gap-3"
+                                                                className="w-full min-h-[3.5rem] h-auto py-3 px-4 text-xs sm:text-sm md:text-base font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-40 flex flex-row items-center justify-center gap-3"
                                                             >
                                                                 {sendingOtp ? (
-                                                                    <><Loader2 className="w-6 h-6 animate-spin" /> Enviando...</>
+                                                                    <>
+                                                                        <Loader2 className="w-5 h-5 animate-spin shrink-0" />
+                                                                        <span className="whitespace-normal text-left sm:text-center flex-1 leading-snug break-words">
+                                                                            Enviando...
+                                                                        </span>
+                                                                    </>
                                                                 ) : (
-                                                                    <><MessageSquare className="w-6 h-6" /> ENVIAR CÓDIGO DE VERIFICACIÓN POR SMS</>
+                                                                    <>
+                                                                        <MessageSquare className="w-5 h-5 md:w-6 md:h-6 shrink-0" />
+                                                                        <span className="whitespace-normal text-left sm:text-center flex-1 leading-snug break-words">
+                                                                            ENVIAR CÓDIGO DE VERIFICACIÓN POR SMS
+                                                                        </span>
+                                                                    </>
                                                                 )}
                                                             </Button>
                                                             <p className="text-sm text-gray-500 text-center leading-relaxed">

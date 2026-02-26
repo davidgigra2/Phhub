@@ -84,15 +84,20 @@ export default function VoteResults({ voteId, options }: VoteResultsProps) {
         return <Loader2 className="w-4 h-4 animate-spin text-gray-500 mx-auto" />;
     }
 
-    if (totalVotes === 0) {
-        return <p className="text-sm text-gray-500 text-center py-2">Sin votos registrados aún.</p>;
-    }
-
     return (
         <div className="space-y-4 pt-4 border-t border-white/5 animate-in fade-in">
-            <h3 className="text-sm font-semibold text-gray-300 mb-2 flex justify-between">
-                <span>Resultados en Vivo</span>
-                {/* <span className="text-xs font-normal text-gray-500">Total: {totalVotes.toFixed(4)}</span> */}
+            <h3 className="text-sm font-semibold text-gray-300 mb-4 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                    <span>Resultados en Vivo</span>
+                    {totalVotes > 0 && (
+                        <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                            Quórum Participante: {(totalVotes * 100).toFixed(2)}%
+                        </span>
+                    )}
+                </div>
+                {totalVotes === 0 && (
+                    <span className="text-[10px] font-black tracking-widest uppercase bg-white/5 text-gray-400 px-2 py-0.5 rounded-full border border-white/10">Sin votos aún</span>
+                )}
             </h3>
 
             {options.map((option) => {

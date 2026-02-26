@@ -197,83 +197,85 @@ export default function DashboardClient({
                 )}
 
                 {/* 5. Voting Section */}
-                <div className="space-y-6 pt-4">
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-xl md:text-2xl font-black tracking-tight">{isAdmin ? "Gestión de Votaciones" : "Votaciones en Curso"}</h2>
-                        <div className="h-0.5 flex-1 bg-white/5" />
-                    </div>
+                {(!isUser || asistenciaRegistrada) && (
+                    <div className="space-y-6 pt-4">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight">{isAdmin ? "Gestión de Votaciones" : "Votaciones en Curso"}</h2>
+                            <div className="h-0.5 flex-1 bg-white/5" />
+                        </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {isAdmin && <CreateVoteForm assemblyId={userProfile?.assembly_id || ''} />}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {isAdmin && <CreateVoteForm assemblyId={userProfile?.assembly_id || ''} />}
 
-                        {votes && votes.map((vote) => {
-                            const hasVoted = vote.ballots && vote.ballots.some((b: any) => b.user_id === user.id);
-                            const isDraft = vote.status === 'DRAFT';
-                            const isPaused = vote.status === 'PAUSED';
-                            const isClosed = vote.status === 'CLOSED';
+                            {votes && votes.map((vote) => {
+                                const hasVoted = vote.ballots && vote.ballots.some((b: any) => b.user_id === user.id);
+                                const isDraft = vote.status === 'DRAFT';
+                                const isPaused = vote.status === 'PAUSED';
+                                const isClosed = vote.status === 'CLOSED';
 
-                            if (isAdmin && isPaused) {
-                                return <EditVoteForm key={vote.id} vote={vote} />;
-                            }
+                                if (isAdmin && isPaused) {
+                                    return <EditVoteForm key={vote.id} vote={vote} />;
+                                }
 
-                            return (
-                                <Card key={vote.id} className={cn(
-                                    "bg-[#121212] border-white/5 shadow-2xl rounded-3xl overflow-hidden transition-all duration-300 hover:border-indigo-500/30",
-                                    isClosed ? 'opacity-60 grayscale' : ''
-                                )}>
-                                    <div className="h-2 w-full bg-gradient-to-r from-indigo-600 to-indigo-400" />
-                                    <CardHeader className="pb-3">
-                                        <div className="flex justify-between items-start gap-4">
-                                            <CardTitle className="text-white text-lg md:text-xl font-bold leading-snug">{vote.title}</CardTitle>
-                                            <div className="flex gap-2 shrink-0">
-                                                {isDraft && <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-500/20 text-gray-400 border border-gray-500/20 font-black tracking-wider">BORRADOR</span>}
-                                                {isPaused && <span className="px-2 py-0.5 rounded-full text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 font-black tracking-wider uppercase">PAUSER</span>}
-                                                {isClosed && <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500/20 text-red-400 border border-red-500/20 font-black tracking-wider">CERRADA</span>}
-                                                {vote.status === 'OPEN' && <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-black tracking-wider animate-pulse">ABIERTA</span>}
+                                return (
+                                    <Card key={vote.id} className={cn(
+                                        "bg-[#121212] border-white/5 shadow-2xl rounded-3xl overflow-hidden transition-all duration-300 hover:border-indigo-500/30",
+                                        isClosed ? 'opacity-60 grayscale' : ''
+                                    )}>
+                                        <div className="h-2 w-full bg-gradient-to-r from-indigo-600 to-indigo-400" />
+                                        <CardHeader className="pb-3">
+                                            <div className="flex justify-between items-start gap-4">
+                                                <CardTitle className="text-white text-lg md:text-xl font-bold leading-snug">{vote.title}</CardTitle>
+                                                <div className="flex gap-2 shrink-0">
+                                                    {isDraft && <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-500/20 text-gray-400 border border-gray-500/20 font-black tracking-wider">BORRADOR</span>}
+                                                    {isPaused && <span className="px-2 py-0.5 rounded-full text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 font-black tracking-wider uppercase">PAUSER</span>}
+                                                    {isClosed && <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500/20 text-red-400 border border-red-500/20 font-black tracking-wider">CERRADA</span>}
+                                                    {vote.status === 'OPEN' && <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-black tracking-wider animate-pulse">ABIERTA</span>}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-6">
-                                        <p className="text-gray-400 text-sm md:text-base leading-relaxed">{vote.description || "Sin descripción adicional."}</p>
+                                        </CardHeader>
+                                        <CardContent className="space-y-6">
+                                            <p className="text-gray-400 text-sm md:text-base leading-relaxed">{vote.description || "Sin descripción adicional."}</p>
 
-                                        {isAdmin && <AdminVoteControls voteId={vote.id} status={vote.status} />}
+                                            {isAdmin && <AdminVoteControls voteId={vote.id} status={vote.status} />}
 
-                                        {(isAdmin || isClosed || hasVoted) && (
-                                            <VoteResults voteId={vote.id} options={vote.vote_options} />
-                                        )}
+                                            {(isAdmin || isClosed || hasVoted) && (
+                                                <VoteResults voteId={vote.id} options={vote.vote_options} />
+                                            )}
 
-                                        {!isAdmin && !isDraft && !isClosed && vote.status === 'OPEN' && (
-                                            <div className="pt-4 border-t border-white/5">
-                                                {hasVoted ? (
-                                                    <Button disabled className="w-full h-14 bg-emerald-500/10 text-emerald-500 border-2 border-emerald-500/20 rounded-2xl font-bold flex items-center justify-center gap-2">
-                                                        <CheckCircle2 className="w-5 h-5" />
-                                                        Voto Registrado Correctamente
-                                                    </Button>
-                                                ) : (
-                                                    <VoteInterface vote={vote} userRole={userProfile?.role} userId={user.id} />
-                                                )}
+                                            {!isAdmin && !isDraft && !isClosed && vote.status === 'OPEN' && (
+                                                <div className="pt-4 border-t border-white/5">
+                                                    {hasVoted ? (
+                                                        <Button disabled className="w-full h-14 bg-emerald-500/10 text-emerald-500 border-2 border-emerald-500/20 rounded-2xl font-bold flex items-center justify-center gap-2">
+                                                            <CheckCircle2 className="w-5 h-5" />
+                                                            Voto Registrado Correctamente
+                                                        </Button>
+                                                    ) : (
+                                                        <VoteInterface vote={vote} userRole={userProfile?.role} userId={user.id} />
+                                                    )}
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                )
+                            })}
+
+                            {!isAdmin && (!votes || votes.length === 0) && (
+                                <div className="col-span-full">
+                                    <Card className="bg-[#121212] border-white/5 border-dashed rounded-3xl">
+                                        <CardContent className="py-16 md:py-24 text-center">
+                                            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
+                                                <FileBarChart className="w-10 h-10 text-gray-600" />
                                             </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            )
-                        })}
-
-                        {!isAdmin && (!votes || votes.length === 0) && (
-                            <div className="col-span-full">
-                                <Card className="bg-[#121212] border-white/5 border-dashed rounded-3xl">
-                                    <CardContent className="py-16 md:py-24 text-center">
-                                        <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
-                                            <FileBarChart className="w-10 h-10 text-gray-600" />
-                                        </div>
-                                        <p className="text-gray-500 font-medium text-lg">No hay votaciones activas en este momento.</p>
-                                        <p className="text-sm text-gray-600 mt-2">Mantente atento a las instrucciones del administrador.</p>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
+                                            <p className="text-gray-500 font-medium text-lg">No hay votaciones activas en este momento.</p>
+                                            <p className="text-sm text-gray-600 mt-2">Mantente atento a las instrucciones del administrador.</p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

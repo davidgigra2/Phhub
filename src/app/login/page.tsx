@@ -56,9 +56,9 @@ function LoginForm() {
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="password" className="text-gray-300">Contraseña</Label>
-                            <Link href="#" className="text-xs text-indigo-400 hover:text-indigo-300">
+                            {/* <Link href="#" className="text-xs text-indigo-400 hover:text-indigo-300">
                                 ¿Olvidaste tu contraseña?
-                            </Link>
+                            </Link> */}
                         </div>
                         <Input
                             id="password"
@@ -83,7 +83,7 @@ function LoginForm() {
             </CardContent>
             <CardFooter className="flex justify-center text-sm text-gray-500">
                 ¿Eres administrador nuevo? &nbsp;
-                <a href="https://wa.me/573216668541" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">
+                <a href="https://wa.me/3053601190" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">
                     Contacta ventas
                 </a>
             </CardFooter>
