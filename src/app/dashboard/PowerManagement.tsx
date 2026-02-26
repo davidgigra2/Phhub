@@ -552,6 +552,7 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
             const result = await revokeProxy(proxyId);
             if (result.success) {
                 setMessage({ type: 'success', text: "Poder revocado exitosamente." });
+                setTimeout(() => window.location.reload(), 1000); // Wait 1 second so the user sees the message
             } else {
                 setMessage({ type: 'error', text: result.message });
             }
