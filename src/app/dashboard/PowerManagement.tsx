@@ -305,7 +305,9 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             html: res.html,
-                            fileName: `proxy-${proxyId}.pdf`
+                            fileName: `proxy-${proxyId}.pdf`,
+                            proxyId: proxyId,
+                            userId: userId
                         })
                     });
 
@@ -315,28 +317,21 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
                         throw new Error("Fallo al generar PDF en el servidor.");
                     }
 
-                    const pdfBlob = await response.blob();
-                    console.log("PDF generado por el servidor, tamaño:", pdfBlob.size);
-                    // ─────────────────────────────────────────────────────────
-
-                    // Convert blob to base64 safely (chunked to avoid stack overflow on large files)
-                    if (userId) {
-                        const arrayBuffer = await pdfBlob.arrayBuffer();
-                        const bytes = new Uint8Array(arrayBuffer);
-                        let binary = '';
-                        const chunkSize = 8192;
-                        for (let i = 0; i < bytes.length; i += chunkSize) {
-                            binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-                        }
-                        const base64 = btoa(binary);
-                        const { uploadAndLinkProxyPDF } = await import("./power-actions");
-                        const uploadResult = await uploadAndLinkProxyPDF(proxyId, base64, userId);
-                        if (uploadResult.success) {
+                    // Server now handles both generation and upload
+                    const contentType = response.headers.get('Content-Type') || '';
+                    if (contentType.includes('application/json')) {
+                        const result = await response.json();
+                        if (result.success) {
                             setPdfUploaded(true);
-                            console.log("PDF oficial respaldado y vinculado en la nube.");
+                            console.log("PDF generado y subido en el servidor:", result.url);
                         } else {
-                            console.error("Server upload error:", uploadResult.message);
+                            console.error("Server upload error:", result.error);
                         }
+                    } else {
+                        // Fallback: server returned raw PDF blob (storage upload failed)
+                        console.warn("Server returned raw PDF - storage upload may have failed.");
+                        const pdfBlob = await response.blob();
+                        console.log("PDF generado por el servidor, tamaño:", pdfBlob.size);
                     }
                 }
             } catch (e) {
