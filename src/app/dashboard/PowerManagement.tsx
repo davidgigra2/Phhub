@@ -622,14 +622,13 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                         <>
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                                 <TabsList className={cn(
-                                    "grid w-full bg-[#1A1A1A] h-12 rounded-xl",
-                                    userRole === 'USER' && (ownWeight > 0 || givenProxy) ? "grid-cols-2" : "grid-cols-1"
+                                    "flex flex-col sm:flex-row w-full bg-[#1A1A1A] h-auto rounded-xl p-1 gap-1"
                                 )}>
                                     {!(userRole === 'USER' && ownWeight === 0 && !givenProxy) && (
-                                        <TabsTrigger value="give" className="text-base rounded-lg">Otorgar Poder</TabsTrigger>
+                                        <TabsTrigger value="give" className="flex-1 text-sm md:text-base rounded-lg py-2.5 sm:py-2 whitespace-normal h-auto leading-tight">Otorgar Poder</TabsTrigger>
                                     )}
                                     {userRole === 'USER' && (
-                                        <TabsTrigger value="receive" className="text-base rounded-lg">Poderes Recibidos</TabsTrigger>
+                                        <TabsTrigger value="receive" className="flex-1 text-sm md:text-base rounded-lg py-2.5 sm:py-2 whitespace-normal h-auto leading-tight">Poderes Recibidos</TabsTrigger>
                                     )}
                                 </TabsList>
 
