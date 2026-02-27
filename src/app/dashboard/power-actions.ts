@@ -96,10 +96,18 @@ async function activateProxyRights(admin: any, principalId: string, representati
     const { data: principal } = await admin.from("users").select("document_number").eq("id", principalId).single();
     if (!principal) return;
 
-    // Transfer the principal's owned units to the new representative
-    await admin.from("units").update({ representative_id: representativeId })
-        .eq("owner_document_number", principal.document_number)
-        .eq("representative_id", principalId); // Only if they currently hold the power
+    // Fetch units where the principal is currently the one holding the right
+    const { data: units } = await admin.from("units").select("id, owner_document_number").eq("representative_id", principalId);
+    if (!units) return;
+
+    const principalDoc = String(principal.document_number || '').trim().toLowerCase();
+
+    // Only transfer the units that the principal actually owns (prevents chaining proxies)
+    for (const unit of units) {
+        if (String(unit.owner_document_number || '').trim().toLowerCase() === principalDoc) {
+            await admin.from("units").update({ representative_id: representativeId }).eq("id", unit.id);
+        }
+    }
 }
 
 // Helper to restore rights
@@ -107,10 +115,18 @@ async function restoreProxyRights(admin: any, principalId: string, representativ
     const { data: principal } = await admin.from("users").select("document_number").eq("id", principalId).single();
     if (!principal) return;
 
-    // Revert the units back to the principal
-    await admin.from("units").update({ representative_id: principalId })
-        .eq("owner_document_number", principal.document_number)
-        .eq("representative_id", representativeId);
+    // To prevent trailing spaces or type mismatches from hiding the unit in a direct .eq(),
+    // we fetch all units held by the representative and filter in memory before updating.
+    const { data: units } = await admin.from("units").select("id, owner_document_number").eq("representative_id", representativeId);
+    if (!units) return;
+
+    const principalDoc = String(principal.document_number || '').trim().toLowerCase();
+
+    for (const unit of units) {
+        if (String(unit.owner_document_number || '').trim().toLowerCase() === principalDoc) {
+            await admin.from("units").update({ representative_id: principalId }).eq("id", unit.id);
+        }
+    }
 }
 
 
