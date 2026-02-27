@@ -94,8 +94,14 @@ export async function deleteAssembly(id: string) {
         await admin.from('attendance_logs').delete().in('user_id', userIds);
 
         // Now delete from auth.users (cascades to public.users)
+        // If auth deletion fails (e.g., because of dependent auth records), 
+        // fall back to deleting from public.users directly
         for (const u of usersToDelete) {
-            await admin.auth.admin.deleteUser(u.id);
+            const { error: authErr } = await admin.auth.admin.deleteUser(u.id);
+            if (authErr) {
+                console.error(`Auth delete failed for ${u.id}, falling back to public.users delete:`, authErr.message);
+                await admin.from('users').delete().eq('id', u.id);
+            }
         }
     }
 
