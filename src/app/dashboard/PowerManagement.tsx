@@ -319,10 +319,16 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
                     console.log("PDF generado por el servidor, tamaño:", pdfBlob.size);
                     // ─────────────────────────────────────────────────────────
 
-                    // Convert blob to base64 and upload via server action (bypasses RLS)
+                    // Convert blob to base64 safely (chunked to avoid stack overflow on large files)
                     if (userId) {
                         const arrayBuffer = await pdfBlob.arrayBuffer();
-                        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                        const bytes = new Uint8Array(arrayBuffer);
+                        let binary = '';
+                        const chunkSize = 8192;
+                        for (let i = 0; i < bytes.length; i += chunkSize) {
+                            binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+                        }
+                        const base64 = btoa(binary);
                         const { uploadAndLinkProxyPDF } = await import("./power-actions");
                         const uploadResult = await uploadAndLinkProxyPDF(proxyId, base64, userId);
                         if (uploadResult.success) {
