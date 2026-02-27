@@ -71,14 +71,35 @@ export async function deleteAssembly(id: string) {
         .select('id')
         .eq('assembly_id', id);
 
-    // 2. Delete them from auth.users (this cascades to public.users and other auth tables)
+    // 2. Before deleting users, clean up their proxies and signatures (FK constraints)
     if (usersToDelete && usersToDelete.length > 0) {
+        const userIds = usersToDelete.map((u: any) => u.id);
+
+        // Delete digital signatures that reference proxies of these users
+        const { data: proxiesOfUsers } = await admin
+            .from('proxies')
+            .select('id')
+            .in('principal_id', userIds);
+
+        if (proxiesOfUsers && proxiesOfUsers.length > 0) {
+            const proxyIds = proxiesOfUsers.map((p: any) => p.id);
+            await admin.from('digital_signatures').delete().in('proxy_id', proxyIds);
+        }
+
+        // Delete all proxies where these users are principal or representative
+        await admin.from('proxies').delete().in('principal_id', userIds);
+        await admin.from('proxies').delete().in('representative_id', userIds);
+
+        // Delete attendance logs for these users
+        await admin.from('attendance_logs').delete().in('user_id', userIds);
+
+        // Now delete from auth.users (cascades to public.users)
         for (const u of usersToDelete) {
             await admin.auth.admin.deleteUser(u.id);
         }
     }
 
-    // 3. Delete the assembly itself (Cascades to units, votes, options, ballots, attendance, power_tokens)
+    // 3. Delete the assembly itself (Cascades to units, votes, options, ballots)
     const { error } = await admin.from('assemblies').delete().eq('id', id);
     if (error) return { error: error.message };
 
