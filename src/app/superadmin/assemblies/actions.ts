@@ -198,9 +198,14 @@ export async function bulkUploadUnits(assemblyId: string, rows: UnitRow[]) {
 
                 if (authErr) {
                     if (authErr.message.includes('already registered')) {
-                        const { data: existingUsers } = await admin.auth.admin.listUsers();
-                        const existing = existingUsers?.users?.find((u: any) => u.email === authEmail);
-                        if (existing) authUserId = existing.id;
+                        // getUserByEmail is more reliable than listUsers() on Vercel
+                        const { data: existingAuthUser } = await admin.auth.admin.getUserByEmail(authEmail);
+                        if (existingAuthUser?.user) {
+                            authUserId = existingAuthUser.user.id;
+                        } else {
+                            results.errors.push(`Auth para ${ownerDoc}: usuario ya existe pero no se pudo recuperar.`);
+                            continue;
+                        }
                     } else {
                         results.errors.push(`Auth para ${ownerDoc}: ${authErr.message}`);
                         continue;
@@ -209,17 +214,23 @@ export async function bulkUploadUnits(assemblyId: string, rows: UnitRow[]) {
                     authUserId = newUser.user!.id;
                 }
 
-                // Upsert public.users
+                // Upsert public.users — check for errors
                 if (authUserId) {
-                    await admin.from('users').upsert({
+                    const { error: upsertErr } = await admin.from('users').upsert({
                         id: authUserId,
                         email: row.email?.trim() || authEmail,
                         full_name: row.owner_name,
                         role: 'USER',
                         document_number: ownerDoc,
-                        assembly_id: assemblyId, // Scope del usuario a la asamblea
+                        assembly_id: assemblyId,
                     }, { onConflict: 'id' });
+
+                    if (upsertErr) {
+                        results.errors.push(`Usuario ${ownerDoc}: error al guardar perfil: ${upsertErr.message}`);
+                        authUserId = null;
+                    }
                 }
+
             }
             if (authUserId) {
                 userMap.set(ownerDoc, authUserId);
