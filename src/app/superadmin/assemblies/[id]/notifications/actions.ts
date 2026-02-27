@@ -488,7 +488,7 @@ export async function saveTemplate(template: NotificationTemplate) {
   return { success: true, message: "Plantilla guardada correctamente" };
 }
 
-export async function sendWelcomeNotifications(assemblyId: string) {
+export async function sendWelcomeNotifications(assemblyId: string, skipCount: number = 0) {
   const supabase = await createClient();
 
   // Verify SuperAdmin
@@ -559,13 +559,13 @@ export async function sendWelcomeNotifications(assemblyId: string) {
       }
     });
 
-    const reps = Array.from(uniqueRepsMap.values());
+    const reps = Array.from(uniqueRepsMap.values()).slice(skipCount);
 
     console.log('--- DEBUG NOTIFICATIONS QUERY ---');
     console.log('Assembly ID:', assemblyId);
     console.log('Raw Properties fetched:', JSON.stringify(properties, null, 2));
     console.log('Reps extracted:', reps.length);
-    console.log('--------------------------------');
+    console.log(`Skipping first ${skipCount}, sending to ${reps.length} remaining recipients.`);
 
     if (reps.length === 0) {
       return { success: false, message: "Las unidades encontradas no tienen usuarios (propietarios o apoderados) asignados." };
@@ -626,11 +626,13 @@ export async function sendWelcomeNotifications(assemblyId: string) {
         fs.appendFileSync('debug_notifications.log', `No phone available for ${rep.id}\n`);
       }
 
-      // Wait for user's individual dispatch
       const results = await Promise.all(promises);
 
       emailsSent += results.filter(r => r.type === 'email' && r.success).length;
       smsSent += results.filter(r => r.type === 'sms' && r.success).length;
+
+      // Delay between sends to avoid Gmail rate limiting
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
     console.log(`Final Sent Count - Emails: ${emailsSent}, SMS: ${smsSent}`);

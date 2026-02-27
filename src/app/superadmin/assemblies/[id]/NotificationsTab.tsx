@@ -74,6 +74,7 @@ export default function NotificationsTab({ assemblyId }: NotificationsTabProps) 
     const [saving, setSaving] = useState(false);
     const [sending, setSending] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [skipCount, setSkipCount] = useState<number>(0);
 
     const loadTemplate = async (type: NotificationType, channel: NotificationChannel) => {
         setLoading(true);
@@ -113,12 +114,15 @@ export default function NotificationsTab({ assemblyId }: NotificationsTabProps) 
     };
 
     const handleSend = async () => {
-        if (!confirm("¿Está seguro de enviar las notificaciones de Bienvenida a TODOS los representantes registrados? Asegúrese de haber guardado la plantilla primero.")) return;
+        const confirmMsg = skipCount > 0
+            ? `¿Enviar notificaciones a partir del destinatario #${skipCount + 1} (saltando los primeros ${skipCount})?`
+            : `¿Está seguro de enviar las notificaciones de Bienvenida a TODOS los representantes registrados?`;
+        if (!confirm(confirmMsg)) return;
 
         setSending(true);
         setMessage(null);
         try {
-            const res = await sendWelcomeNotifications(assemblyId);
+            const res = await sendWelcomeNotifications(assemblyId, skipCount);
             if (res.success) {
                 setMessage({ type: 'success', text: res.message || "Notificaciones en proceso de envío" });
             } else {
@@ -297,18 +301,32 @@ export default function NotificationsTab({ assemblyId }: NotificationsTabProps) 
                                 )}
 
                                 <div className="flex justify-between items-center pt-4">
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 items-center">
                                         {activeType === 'WELCOME' && (
-                                            <Button
-                                                onClick={handleSend}
-                                                disabled={sending || saving || activeType !== 'WELCOME'}
-                                                className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[120px]"
-                                            >
-                                                {sending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                                                Enviar a Todos
-                                            </Button>
+                                            <>
+                                                <div className="flex items-center gap-1">
+                                                    <label className="text-xs text-gray-400 whitespace-nowrap">Saltar primeros:</label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={skipCount}
+                                                        onChange={e => setSkipCount(Math.max(0, parseInt(e.target.value) || 0))}
+                                                        className="w-16 text-sm bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-center"
+                                                        disabled={sending}
+                                                    />
+                                                </div>
+                                                <Button
+                                                    onClick={handleSend}
+                                                    disabled={sending || saving}
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[120px]"
+                                                >
+                                                    {sending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                                                    {skipCount > 0 ? `Enviar desde #${skipCount + 1}` : 'Enviar a Todos'}
+                                                </Button>
+                                            </>
                                         )}
                                     </div>
+
                                     <Button
                                         onClick={handleSave}
                                         disabled={saving || sending}
