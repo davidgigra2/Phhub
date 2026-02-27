@@ -512,17 +512,23 @@ export async function revokeProxy(proxyId: string) {
 
 export async function getMyPowerStats(userId: string) {
     noStore();
+
+    // DEBUG: confirm key is present
+    console.log(`[POWER STATS DEBUG] SERVICE_KEY present: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY} userId=${userId}`);
+
+    // Use admin client for cross-table queries that bypass RLS
     const admin = getServiceClient();
 
-    const { data: currentUser } = await admin.from("users").select("document_number").eq("id", userId).single();
+    const { data: currentUser, error: cuErr } = await admin.from("users").select("document_number").eq("id", userId).single();
+    console.log(`[POWER STATS DEBUG] currentUser=${JSON.stringify(currentUser)} err=${cuErr?.message}`);
 
-    const { data: representedUnitsData } = await admin
+    const { data: representedUnitsData, error: unitsErr } = await admin
         .from("units")
         .select("number, coefficient, owner_document_number, owner_name")
         .eq("representative_id", userId);
 
     // DEBUG: Diagnose Vercel environment
-    console.log(`[POWER STATS DEBUG] userId=${userId} currentUser=${JSON.stringify(currentUser)} unitsFound=${representedUnitsData?.length ?? 'null'}`);
+    console.log(`[POWER STATS DEBUG] unitsFound=${representedUnitsData?.length ?? 'null'} err=${unitsErr?.message}`);
 
     let ownWeight = 0;
     let representedWeight = 0;
