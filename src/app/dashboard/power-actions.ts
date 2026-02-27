@@ -658,7 +658,7 @@ export async function getProxyDocumentContent(params: { representativeDoc?: stri
         if (signature?.verified_at) {
             otpValue = signature.otp_code || "Sin código";
             const dateObj = new Date(signature.verified_at);
-            timestampValue = dateObj.toLocaleString('es-CO');
+            timestampValue = dateObj.toLocaleString('es-CO', { timeZone: 'America/Bogota' });
         }
     }
 
