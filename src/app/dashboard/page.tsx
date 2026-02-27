@@ -54,9 +54,6 @@ export default async function DashboardPage() {
 
         // Did I receive powers? Grab stats
         powerStats = await getMyPowerStats(user.id);
-
-        // DEBUG: Log what we're computing on the server to diagnose Vercel discrepancies
-        console.log(`[DASHBOARD DEBUG] user.id=${user.id} givenProxy=${JSON.stringify(givenProxy?.id || null)} ownWeight=${powerStats?.ownWeight} representedWeight=${powerStats?.representedWeight}`);
     }
 
     // Fetch votes logic (Admin sees ALL in their assembly, User sees only OPEN)
