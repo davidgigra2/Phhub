@@ -511,6 +511,7 @@ export async function revokeProxy(proxyId: string) {
 }
 
 export async function getMyPowerStats(userId: string) {
+    noStore();
     const admin = getServiceClient();
 
     const { data: currentUser } = await admin.from("users").select("document_number").eq("id", userId).single();
@@ -519,6 +520,9 @@ export async function getMyPowerStats(userId: string) {
         .from("units")
         .select("number, coefficient, owner_document_number, owner_name")
         .eq("representative_id", userId);
+
+    // DEBUG: Diagnose Vercel environment
+    console.log(`[POWER STATS DEBUG] userId=${userId} currentUser=${JSON.stringify(currentUser)} unitsFound=${representedUnitsData?.length ?? 'null'}`);
 
     let ownWeight = 0;
     let representedWeight = 0;
