@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { headers } from "next/headers";
 import crypto from 'crypto';
 import { sendEmail, sendSMS } from "@/lib/notifications";
@@ -455,6 +455,7 @@ export async function registerProxy(params: {
 }
 
 export async function revokeProxy(proxyId: string) {
+    noStore();
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, message: "No autenticado" };
@@ -489,7 +490,7 @@ export async function revokeProxy(proxyId: string) {
 
     if (error) return { success: false, message: error.message };
 
-    revalidatePath("/dashboard");
+    revalidatePath("/dashboard", "layout");
     return { success: true, message: "Poder revocado." };
 }
 
@@ -554,6 +555,7 @@ export async function linkGeneratedProxyPDF(proxyId: string, documentUrl: string
 }
 
 export async function getProxyDocumentContent(params: { representativeDoc?: string; representativeName?: string; isPreview?: boolean; proxyId?: string; }) {
+    noStore();
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, message: "No autenticado" };

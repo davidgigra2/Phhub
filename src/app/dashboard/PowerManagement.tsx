@@ -12,6 +12,7 @@ import {
     MessageSquare, Trash2, UploadCloud
 } from "lucide-react";
 import { registerProxy, revokeProxy, ProxyType, requestProxyOTP, verifyProxyOTP, getProxyDocumentContent } from "./power-actions";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -430,6 +431,7 @@ function SuccessScreen({ proxyId, userId }: { proxyId?: string | null, userId: s
 // ─────────────────────────────────────────────
 export default function PowerManagement({ userId, userRole, givenProxy, receivedProxies = [], ownWeight = 0 }: PowerManagementProps) {
     const isOperator = userRole === 'OPERATOR';
+    const router = useRouter();
     const [isExpanded, setIsExpanded] = useState(!isOperator);
     const [showRevokeDialog, setShowRevokeDialog] = useState(false);
     const [activeTab, setActiveTab] = useState((userRole === 'USER' && ownWeight === 0 && !givenProxy) ? "receive" : "give");
@@ -488,6 +490,7 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
                 setRegisteredProxyId(res.proxyId || null);
                 // The proxy is already verified and activated by verifyProxyOTP
                 setRegistered(true);
+                router.refresh();
                 return true;
             } else {
                 setMessage({ type: 'error', text: res.message });
@@ -536,6 +539,7 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
             });
             if (result.success) {
                 setRegistered(true);
+                router.refresh();
             } else {
                 setMessage({ type: 'error', text: result.message || "Error al registrar poder." });
             }
@@ -552,7 +556,9 @@ export default function PowerManagement({ userId, userRole, givenProxy, received
             const result = await revokeProxy(proxyId);
             if (result.success) {
                 setMessage({ type: 'success', text: "Poder revocado exitosamente." });
-                setTimeout(() => window.location.reload(), 1000); // Wait 1 second so the user sees the message
+                setTimeout(() => {
+                    router.refresh();
+                }, 1000); // Wait 1 second before forcing Server Component refresh
             } else {
                 setMessage({ type: 'error', text: result.message });
             }
