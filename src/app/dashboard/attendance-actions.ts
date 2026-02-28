@@ -1,7 +1,38 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+
+export async function getAssemblyQuorum(assemblyId: string): Promise<number> {
+    if (!assemblyId) return 0;
+
+    const admin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // JOIN desde attendance_logs → units (la FK va en esa dirección)
+    // Filtra por assembly_id a través de la relación
+    const { data: logs, error } = await admin
+        .from("attendance_logs")
+        .select("unit_id, units!inner(coefficient)")
+        .eq("units.assembly_id", assemblyId);
+
+    if (error || !logs) return 0;
+
+    // Deduplicar por unit_id y sumar coeficientes
+    const seen = new Set<string>();
+    let total = 0;
+    for (const log of logs) {
+        if (!seen.has(log.unit_id)) {
+            seen.add(log.unit_id);
+            total += Number((log.units as any).coefficient);
+        }
+    }
+
+    return total;
+}
 
 export async function registerAttendance(unitId: string) {
     const supabase = await createClient();

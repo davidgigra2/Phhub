@@ -8,15 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Loader2, X, PlusCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
-
-export default function CreateVoteForm({ assemblyId }: { assemblyId: string }) {
+export default function CreateVoteForm({ assemblyId, onVoteCreated }: { assemblyId: string; onVoteCreated?: () => void }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [options, setOptions] = useState([{ label: "A favor" }, { label: "En contra" }]);
-    const router = useRouter();
     const supabase = createClient();
 
     const addOption = () => {
@@ -80,7 +77,7 @@ export default function CreateVoteForm({ assemblyId }: { assemblyId: string }) {
             setDescription("");
             setOptions([{ label: "A favor" }, { label: "En contra" }]);
             setIsExpanded(false);
-            router.refresh(); // Refresh server component
+            onVoteCreated?.();
 
         } catch (error) {
             console.error("Error creating vote:", error);

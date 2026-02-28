@@ -11,9 +11,10 @@ interface VoteInterfaceProps {
     vote: any;
     userRole: string;
     userId: string;
+    onVoteSuccess?: () => void;
 }
 
-export default function VoteInterface({ vote, userRole, userId }: VoteInterfaceProps) {
+export default function VoteInterface({ vote, userRole, userId, onVoteSuccess }: VoteInterfaceProps) {
     const isOperator = userRole === 'OPERATOR';
     const [selectedOption, setSelectedOption] = useState<string>("");
     const [proxiedUsername, setProxiedUsername] = useState<string>("");
@@ -61,6 +62,8 @@ export default function VoteInterface({ vote, userRole, userId }: VoteInterfaceP
 
                     // Clear success message after 4s
                     setTimeout(() => setSuccessMessage(null), 4000);
+                } else {
+                    onVoteSuccess?.();
                 }
             }
 

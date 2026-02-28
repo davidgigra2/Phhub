@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
@@ -20,7 +20,7 @@ export default function VoteResults({ voteId, options }: VoteResultsProps) {
     const [totalVotes, setTotalVotes] = useState(0);
     const [loading, setLoading] = useState(true);
 
-    const supabase = createClient();
+    const supabase = useRef(createClient()).current;
 
     // Fetch initial results
     useEffect(() => {

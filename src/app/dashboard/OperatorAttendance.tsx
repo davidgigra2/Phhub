@@ -42,7 +42,12 @@ function CountdownRing({ duration }: { duration: number }) {
 
 const FEEDBACK_DURATION = 2000;
 
-export default function OperatorAttendance() {
+interface OperatorAttendanceProps {
+    assemblyId?: string;
+    onAttendanceSuccess?: () => void;
+}
+
+export default function OperatorAttendance({ assemblyId: _assemblyId, onAttendanceSuccess }: OperatorAttendanceProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
     const [scanResult, setScanResult] = useState<ScanResult>(null);
@@ -89,6 +94,7 @@ export default function OperatorAttendance() {
             let status: ScanStatus;
             if (raw.success) {
                 status = "success";
+                onAttendanceSuccess?.();
             } else if ((raw as any).alreadyRegistered) {
                 status = "already_registered";
             } else {
@@ -106,7 +112,7 @@ export default function OperatorAttendance() {
         } finally {
             setLoading(false);
         }
-    }, [showFeedback]);
+    }, [showFeedback, onAttendanceSuccess]);
 
     const handleScanSuccess = useCallback(async (decodedText: string) => {
         if (isScanningPaused.current || loading) return;

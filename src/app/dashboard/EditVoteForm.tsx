@@ -7,20 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Play, Trash2, Loader2, Save, Square } from "lucide-react";
-import { updateVoteStatus, deleteVote } from "./admin-actions";
-import { useRouter } from "next/navigation";
+import { Play, Plus, Trash2, Loader2, Save, Square } from "lucide-react";
+import { updateVoteStatus, updateVoteDetails, deleteVote } from "./admin-actions";
 
 interface EditVoteFormProps {
     vote: any;
+    onActionComplete?: () => void;
 }
 
-export default function EditVoteForm({ vote }: EditVoteFormProps) {
+export default function EditVoteForm({ vote, onActionComplete }: EditVoteFormProps) {
     const [loading, setLoading] = useState(false);
     const [title, setTitle] = useState(vote.title);
     const [description, setDescription] = useState(vote.description || "");
     const [options, setOptions] = useState(vote.vote_options?.sort((a: any, b: any) => a.order_index - b.order_index) || []);
-    const router = useRouter();
     const supabase = createClient();
 
     const addOption = () => {
@@ -72,13 +71,8 @@ export default function EditVoteForm({ vote }: EditVoteFormProps) {
         }
 
         try {
-            // 1. Update Vote Details
-            const { error: voteError } = await supabase
-                .from("votes")
-                .update({ title, description, status: 'OPEN' })
-                .eq('id', vote.id);
-
-            if (voteError) throw voteError;
+            // 1. Update Vote title/description via server action (bypasses RLS)
+            await updateVoteDetails(vote.id, title, description);
 
             // 2. Upsert Options
             for (const [index, opt] of options.entries()) {
@@ -93,8 +87,10 @@ export default function EditVoteForm({ vote }: EditVoteFormProps) {
                 if (optError) throw optError;
             }
 
-            // Success
-            router.refresh();
+            // 3. Set status back to OPEN via server action (bypasses RLS)
+            await updateVoteStatus(vote.id, 'OPEN');
+
+            onActionComplete?.();
 
         } catch (error) {
             console.error("Error updating vote:", error);
@@ -132,8 +128,7 @@ export default function EditVoteForm({ vote }: EditVoteFormProps) {
         console.log("Terminating vote:", vote.id);
         try {
             await updateVoteStatus(vote.id, 'CLOSED');
-            console.log("Vote terminated successfully. Refreshing...");
-            window.location.reload();
+            onActionComplete?.();
         } catch (error: any) {
             console.error("Error terminating vote:", error);
             alert("Error al terminar votación: " + error.message);
@@ -260,4 +255,3 @@ export default function EditVoteForm({ vote }: EditVoteFormProps) {
     );
 }
 
-import { Plus } from "lucide-react";

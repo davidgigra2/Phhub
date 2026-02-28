@@ -9,9 +9,10 @@ import { useRouter } from "next/navigation";
 interface AdminVoteControlsProps {
     voteId: string;
     status: string;
+    onActionComplete?: () => void;
 }
 
-export default function AdminVoteControls({ voteId, status }: AdminVoteControlsProps) {
+export default function AdminVoteControls({ voteId, status, onActionComplete }: AdminVoteControlsProps) {
     const [loading, setLoading] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
 
@@ -22,6 +23,7 @@ export default function AdminVoteControls({ voteId, status }: AdminVoteControlsP
         try {
             await action();
             router.refresh();
+            onActionComplete?.();
         } catch (error) {
             console.error("Action failed:", error);
             alert("Error al ejecutar acción");

@@ -29,9 +29,18 @@ export default async function DashboardPage() {
     // Fetch represented units (Own + Proxies)
     const { data: representedUnits } = await supabase
         .from('units')
-        .select('id, number, coefficient')
+        .select('id, number, coefficient, assembly_id')
         .eq('representative_id', user.id)
         .order('number');
+
+    // Para apoderados (proxy holders) el assembly_id puede no estar en su perfil.
+    // Lo derivamos de las unidades que representan.
+    const effectiveAssemblyId: string | null =
+        userProfile?.assembly_id ?? representedUnits?.[0]?.assembly_id ?? null;
+
+    const resolvedUserProfile = (effectiveAssemblyId && !userProfile?.assembly_id)
+        ? { ...userProfile, assembly_id: effectiveAssemblyId }
+        : userProfile;
 
     const totalCoefficient = (representedUnits || []).reduce((sum, u) => sum + Number(u.coefficient || 0), 0);
 
@@ -67,8 +76,8 @@ export default async function DashboardPage() {
         .order('created_at', { ascending: false });
 
     // Filter by assembly if user has one
-    if (userProfile?.assembly_id) {
-        voteQuery = voteQuery.eq('assembly_id', userProfile.assembly_id);
+    if (effectiveAssemblyId) {
+        voteQuery = voteQuery.eq('assembly_id', effectiveAssemblyId);
     }
 
     if (!isAdmin) {
@@ -99,7 +108,7 @@ export default async function DashboardPage() {
     return (
         <DashboardClient
             user={user}
-            userProfile={userProfile}
+            userProfile={resolvedUserProfile}
             representedUnits={representedUnits || []}
             givenProxy={givenProxy}
             powerStats={powerStats}

@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { createClient } from "@/lib/supabase/client";
+import { getAssemblyQuorum } from './attendance-actions';
+import { getVotesForDashboard } from './admin-actions';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, FileBarChart, PlusCircle, LayoutDashboard, Settings } from 'lucide-react';
+import { CheckCircle2, FileBarChart } from 'lucide-react';
 import Link from 'next/link';
 import QuorumCard from './QuorumCard';
 import UserQRCard from './UserQRCard';
@@ -44,8 +47,111 @@ export default function DashboardClient({
     asistenciaRegistrada // NEW: prop instead of state
 }: DashboardClientProps) {
 
+    const supabase = useRef(createClient()).current;
+
     const isUser = userProfile?.role === 'USER';
     const userRoleLabel = isUser ? 'Asambleísta' : (isAdmin ? 'Administrador' : (isOperator ? 'Operador' : 'Usuario'));
+
+    const [isAttendanceRegistered, setIsAttendanceRegistered] = useState(asistenciaRegistrada);
+    const [localVotes, setLocalVotes] = useState(votes);
+    const [quorum, setQuorum] = useState(0);
+    const [loadingQuorum, setLoadingQuorum] = useState(true);
+    const quorumChannelRef = useRef<any>(null);
+    const votesChannelRef = useRef<any>(null);
+    const isAttendanceRegisteredRef = useRef(isAttendanceRegistered);
+    useEffect(() => { isAttendanceRegisteredRef.current = isAttendanceRegistered; }, [isAttendanceRegistered]);
+
+    // Quorum: fetch inicial + broadcast multiplexado sobre el mismo WebSocket
+    useEffect(() => {
+        if (!userProfile?.assembly_id) {
+            setLoadingQuorum(false);
+            return;
+        }
+        const assemblyId = userProfile.assembly_id;
+
+        getAssemblyQuorum(assemblyId)
+            .then((total) => { setQuorum(total); })
+            .catch(() => {})
+            .finally(() => { setLoadingQuorum(false); });
+
+        const channel = supabase
+            .channel(`assembly_quorum_${assemblyId}`)
+            .on('broadcast', { event: 'quorum_update' }, async () => {
+                const total = await getAssemblyQuorum(assemblyId);
+                setQuorum(total);
+            })
+            .on('broadcast', { event: 'attendance_registered' }, async () => {
+                if (!isUser || isAttendanceRegisteredRef.current || representedUnits.length === 0) return;
+                const { data } = await supabase
+                    .from('attendance_logs')
+                    .select('id')
+                    .in('unit_id', representedUnits.map((u: any) => u.id))
+                    .limit(1);
+                if (data && data.length > 0) setIsAttendanceRegistered(true);
+            })
+            .subscribe();
+
+        quorumChannelRef.current = channel;
+
+        return () => {
+            supabase.removeChannel(channel);
+            quorumChannelRef.current = null;
+        };
+    }, [userProfile?.assembly_id, supabase]);
+
+    const handleAttendanceSuccess = useCallback(async () => {
+        if (!userProfile?.assembly_id) return;
+        const total = await getAssemblyQuorum(userProfile.assembly_id);
+        setQuorum(total);
+        quorumChannelRef.current?.send({ type: 'broadcast', event: 'quorum_update', payload: {} });
+        quorumChannelRef.current?.send({ type: 'broadcast', event: 'attendance_registered', payload: {} });
+    }, [userProfile?.assembly_id]);
+
+    // Realtime: broadcast desde admin + postgres_changes como fallback
+    useEffect(() => {
+        if (!userProfile?.assembly_id) return;
+        const assemblyId = userProfile.assembly_id;
+
+        const refreshVotes = async () => {
+            const fresh = await getVotesForDashboard(assemblyId);
+            setLocalVotes(fresh);
+        };
+
+        let ch = supabase
+            .channel(`assembly_votes_${assemblyId}`)
+            .on('broadcast', { event: 'votes_update' }, refreshVotes);
+
+        if (isAdmin) {
+            ch = ch.on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'votes', filter: `assembly_id=eq.${assemblyId}` },
+                refreshVotes
+            );
+        }
+
+        const channel = ch.subscribe();
+
+        votesChannelRef.current = channel;
+
+        return () => {
+            supabase.removeChannel(channel);
+            votesChannelRef.current = null;
+        };
+    }, [userProfile?.assembly_id, supabase]);
+
+    const handleUserVote = useCallback((voteId: string) => {
+        setLocalVotes(prev => prev.map(v =>
+            v.id !== voteId ? v : { ...v, ballots: [...(v.ballots || []), { user_id: user.id }] }
+        ));
+    }, [user.id]);
+
+    const handleVoteAction = useCallback(async () => {
+        if (!userProfile?.assembly_id) return;
+        const fresh = await getVotesForDashboard(userProfile.assembly_id);
+        setLocalVotes(fresh);
+        votesChannelRef.current?.send({ type: 'broadcast', event: 'votes_update', payload: {} });
+    }, [userProfile?.assembly_id]);
+
 
     return (
         <div className="min-h-screen bg-[#141414] text-white p-4 md:p-8">
@@ -87,7 +193,7 @@ export default function DashboardClient({
                     {/* ASAMBLEÍSTA: QR or Success Banner (LEFT COLUMN on Desktop) */}
                     {isUser && (
                         <div className="lg:col-span-1 animate-in fade-in slide-in-from-top-4 duration-500">
-                            {asistenciaRegistrada ? (
+                            {isAttendanceRegistered ? (
                                 <Card className="bg-emerald-950/20 border-2 border-emerald-500/30 overflow-hidden shadow-2xl shadow-emerald-500/10 rounded-3xl h-full flex flex-col justify-center">
                                     <CardContent className="py-8 md:py-10 flex flex-col items-center text-center gap-4">
                                         <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
@@ -145,7 +251,7 @@ export default function DashboardClient({
                             </CardContent>
                         </Card>
 
-                        <QuorumCard assemblyId={userProfile?.assembly_id} />
+                        <QuorumCard quorum={quorum} loading={loadingQuorum} />
 
                         {/* Coefficient Card (Visible to USER if assigned) */}
                         {isUser && (
@@ -179,7 +285,7 @@ export default function DashboardClient({
                 </div>
 
                 {/* 3. Power Management Section (CONDITIONAL FOR USER) */}
-                {!isAdmin && !(isUser && asistenciaRegistrada) && (
+                {!isAdmin && !(isUser && isAttendanceRegistered) && (
                     <PowerManagement
                         userId={user.id}
                         userRole={userProfile?.role}
@@ -192,12 +298,12 @@ export default function DashboardClient({
                 {/* 4. Operator Section */}
                 {isOperator && (
                     <div className="grid grid-cols-1 gap-6">
-                        <OperatorAttendance />
+                        <OperatorAttendance assemblyId={userProfile?.assembly_id} onAttendanceSuccess={handleAttendanceSuccess} />
                     </div>
                 )}
 
                 {/* 5. Voting Section */}
-                {(!isUser || asistenciaRegistrada) && (
+                {(!isUser || isAttendanceRegistered) && (
                     <div className="space-y-6 pt-4">
                         <div className="flex items-center gap-3">
                             <h2 className="text-xl md:text-2xl font-black tracking-tight">{isAdmin ? "Gestión de Votaciones" : "Votaciones en Curso"}</h2>
@@ -205,16 +311,16 @@ export default function DashboardClient({
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {isAdmin && <CreateVoteForm assemblyId={userProfile?.assembly_id || ''} />}
+                            {isAdmin && <CreateVoteForm assemblyId={userProfile?.assembly_id || ''} onVoteCreated={handleVoteAction} />}
 
-                            {votes && votes.map((vote) => {
+                            {localVotes && localVotes.map((vote) => {
                                 const hasVoted = vote.ballots && vote.ballots.some((b: any) => b.user_id === user.id);
                                 const isDraft = vote.status === 'DRAFT';
                                 const isPaused = vote.status === 'PAUSED';
                                 const isClosed = vote.status === 'CLOSED';
 
                                 if (isAdmin && isPaused) {
-                                    return <EditVoteForm key={vote.id} vote={vote} />;
+                                    return <EditVoteForm key={vote.id} vote={vote} onActionComplete={handleVoteAction} />;
                                 }
 
                                 return (
@@ -237,7 +343,7 @@ export default function DashboardClient({
                                         <CardContent className="space-y-6">
                                             <p className="text-gray-400 text-sm md:text-base leading-relaxed">{vote.description || "Sin descripción adicional."}</p>
 
-                                            {isAdmin && <AdminVoteControls voteId={vote.id} status={vote.status} />}
+                                            {isAdmin && <AdminVoteControls voteId={vote.id} status={vote.status} onActionComplete={handleVoteAction} />}
 
                                             {(isAdmin || isClosed || hasVoted) && (
                                                 <VoteResults voteId={vote.id} options={vote.vote_options} />
@@ -251,7 +357,7 @@ export default function DashboardClient({
                                                             Voto Registrado Correctamente
                                                         </Button>
                                                     ) : (
-                                                        <VoteInterface vote={vote} userRole={userProfile?.role} userId={user.id} />
+                                                        <VoteInterface vote={vote} userRole={userProfile?.role} userId={user.id} onVoteSuccess={() => handleUserVote(vote.id)} />
                                                     )}
                                                 </div>
                                             )}
@@ -260,7 +366,7 @@ export default function DashboardClient({
                                 )
                             })}
 
-                            {!isAdmin && (!votes || votes.length === 0) && (
+                            {!isAdmin && (!localVotes || localVotes.length === 0) && (
                                 <div className="col-span-full">
                                     <Card className="bg-[#121212] border-white/5 border-dashed rounded-3xl">
                                         <CardContent className="py-16 md:py-24 text-center">
