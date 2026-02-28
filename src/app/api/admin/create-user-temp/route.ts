@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getServiceClient } from '@/lib/supabase/service';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
-    const admin = getServiceClient();
+    const admin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } }
+    );
 
     // 1. Crear usuario en Auth con contraseña correcta
     const { data: authUser, error: authError } = await admin.auth.admin.createUser({
