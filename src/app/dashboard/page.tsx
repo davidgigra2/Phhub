@@ -72,7 +72,7 @@ export default async function DashboardPage() {
     }
 
     if (!isAdmin) {
-        voteQuery = voteQuery.eq('status', 'OPEN');
+        voteQuery = voteQuery.in('status', ['OPEN', 'CLOSED']);
     }
 
     const { data: votes } = await voteQuery;

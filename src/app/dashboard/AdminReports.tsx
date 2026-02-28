@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileBarChart, Download, Users, UserX, Gavel, FileText, RefreshCw, Loader2 } from "lucide-react";
+import { FileBarChart, Download, Users, UserX, Gavel, FileText, RefreshCw, Loader2, FileDown } from "lucide-react";
 import { getAttendanceReport, getAbsenceReport, getVotesReport, getProxiesReport } from "./reports-actions";
 
 export default function AdminReports({ assemblyId }: { assemblyId?: string }) {
@@ -209,6 +209,7 @@ export default function AdminReports({ assemblyId }: { assemblyId?: string }) {
                                                 <TableHead className="text-gray-300">Tipo</TableHead>
                                                 <TableHead className="text-right text-gray-300">Coef</TableHead>
                                                 <TableHead className="text-right text-gray-300">Fecha</TableHead>
+                                                <TableHead className="text-center text-gray-300">Soporte</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -229,11 +230,20 @@ export default function AdminReports({ assemblyId }: { assemblyId?: string }) {
                                                     </TableCell>
                                                     <TableCell className="text-right text-gray-300">{Number(row.principalCoef).toFixed(4)}</TableCell>
                                                     <TableCell className="text-right text-sm text-gray-500">{row.date}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        {row.documentUrl ? (
+                                                            <a href={row.documentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
+                                                                <FileDown className="w-3 h-3" /> PDF
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-600">—</span>
+                                                        )}
+                                                    </TableCell>
                                                 </TableRow>
                                             ))}
                                             {proxiesData.length === 0 && (
                                                 <TableRow>
-                                                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">No hay poderes registrados.</TableCell>
+                                                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">No hay poderes registrados.</TableCell>
                                                 </TableRow>
                                             )}
                                         </TableBody>

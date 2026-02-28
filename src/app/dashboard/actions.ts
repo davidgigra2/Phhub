@@ -16,6 +16,17 @@ export async function castVote(formData: FormData) {
     const { data: { user: actor } } = await supabase.auth.getUser();
     if (!actor) return redirect("/login");
 
+    // 1b. Verify vote is still OPEN
+    const { data: vote } = await supabase
+        .from("votes")
+        .select("status")
+        .eq("id", vote_id)
+        .single();
+
+    if (!vote || vote.status !== 'OPEN') {
+        return { success: false, message: "Esta votación ya está cerrada.", code: "VOTE_CLOSED" };
+    }
+
     // 2. Determine Target User (Voter)
     let targetUserId = actor.id;
 
@@ -56,6 +67,20 @@ export async function castVote(formData: FormData) {
 
     if (!userUnits || userUnits.length === 0) {
         return { success: false, message: "El usuario seleccionado no representa ninguna unidad y no puede votar." };
+    }
+
+    // 3b. Si el operador vota por otro, verificar que tenga asistencia registrada
+    if (proxied_username) {
+        const unitIds = userUnits.map((u: any) => u.id);
+        const { data: attendanceLogs } = await supabase
+            .from("attendance_logs")
+            .select("id")
+            .in("unit_id", unitIds)
+            .limit(1);
+
+        if (!attendanceLogs || attendanceLogs.length === 0) {
+            return { success: false, message: "El usuario no tiene registro de asistencia. Debe marcar asistencia antes de poder votar.", code: "NOT_CHECKED_IN" };
+        }
     }
 
     // 4. For each unit the user represents, check if it already voted and cast the vote

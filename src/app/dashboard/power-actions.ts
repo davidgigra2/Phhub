@@ -440,6 +440,19 @@ export async function registerProxy(params: {
                 return { success: false, message: `El propietario con cédula ${params.externalDoc} no tiene unidades registradas en este sistema.` };
             }
 
+            // Verificar que el propietario no tenga ya un poder activo
+            const { data: existingProxy } = await admin
+                .from('proxies')
+                .select('id')
+                .eq('principal_id', ownerUser.id)
+                .eq('status', 'APPROVED')
+                .limit(1)
+                .maybeSingle();
+
+            if (existingProxy) {
+                return { success: false, message: `El propietario con cédula ${params.externalDoc} ya tiene un poder activo registrado. Debe revocarlo primero.` };
+            }
+
             // Usar el ID del propietario como principal
             principalId = ownerUser.id;
 
